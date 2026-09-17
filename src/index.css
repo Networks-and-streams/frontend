@@ -1,0 +1,121 @@
+@import 'tailwindcss';
+
+@theme {
+	--color-card: var(--card);
+	--color-card-hover: var(--card-hover);
+	--color-card-border: var(--card-border);
+	--color-surface: var(--surface);
+	--color-background: var(--bg);
+	--color-foreground: var(--fg);
+	--color-muted: var(--muted);
+	--color-muted-hover: var(--muted-hover);
+	--color-border: var(--border);
+	--color-border-subtle: var(--border-subtle);
+	--color-border-strong: var(--border-strong);
+	--color-overlay: var(--overlay);
+	--color-accent: var(--accent);
+	--color-accent-darker: var(--accent-darker);
+
+	--radius-card: 1.25rem;
+	--radius-control: 0.75rem;
+
+	--shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px -4px rgb(0 0 0 / 0.06);
+	--shadow-pop: 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 16px 48px -12px rgb(0 0 0 / 0.16);
+	--shadow-overlay: 0 24px 64px -16px rgb(0 0 0 / 0.28);
+
+	--animate-fade-in: fade-in 0.25s ease-out both;
+	--animate-fade-in-up: fade-in-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+	--animate-scale-in: scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+	--animate-toast-in: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+	@keyframes fade-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@keyframes fade-in-up {
+		from {
+			opacity: 0;
+			transform: translateY(12px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@keyframes scale-in {
+		from {
+			opacity: 0;
+			transform: scale(0.96);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	@keyframes toast-in {
+		from {
+			opacity: 0;
+			transform: translateY(12px) scale(0.98);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+		}
+	}
+}
+
+:root {
+	--accent: #34d399;
+	--accent-darker: #10b981;
+
+	--bg: #ffffff;
+	--surface: #f4f4f5;
+	--fg: #18181b;
+	--muted: #f4f4f5;
+	--muted-hover: #e4e4e7;
+	--border: #e4e4e7;
+	--border-subtle: #f4f4f5;
+	--border-strong: #d4d4d8;
+	--card: #ffffff;
+	--card-hover: #fafafa;
+	--card-border: #e4e4e7;
+	--overlay: rgb(0 0 0 / 0.6);
+}
+
+.dark {
+	--bg: #09090b;
+	--surface: #18181b;
+	--fg: #ffffff;
+	--muted: rgb(255 255 255 / 0.05);
+	--muted-hover: rgb(255 255 255 / 0.1);
+	--border: rgb(255 255 255 / 0.1);
+	--border-subtle: rgb(255 255 255 / 0.05);
+	--border-strong: rgb(255 255 255 / 0.2);
+	--card: rgb(255 255 255 / 0.03);
+	--card-hover: rgb(255 255 255 / 0.05);
+	--card-border: rgb(255 255 255 / 0.1);
+	--overlay: rgb(0 0 0 / 0.6);
+}
+
+@layer base {
+	body {
+		@apply bg-background text-foreground antialiased;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	}
+
+	*:focus-visible {
+		@apply outline-2 outline-offset-2 outline-accent;
+	}
+
+	::selection {
+		background: color-mix(in srgb, var(--accent) 20%, transparent);
+		@apply text-foreground;
+	}
+}
