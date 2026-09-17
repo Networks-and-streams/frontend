@@ -5,7 +5,18 @@ export interface RequestConfig extends AxiosRequestConfig {
 	skipAuth?: boolean;
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+/**
+ * API base URL.
+ *
+ * Relative by default: requests go to `/api/...` on the page's own origin,
+ * which the local Nginx (infra/nginx) routes to the backend. The Vite dev
+ * server proxies `/api` to the backend too, so plain `npm run dev` works.
+ *
+ * Set VITE_API_URL to point the app at an already-deployed backend instead
+ * (e.g. VITE_API_URL=https://api.example.com). Leave it unset for the
+ * tunnel/Nginx workflow.
+ */
+export const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Access token lives in memory only.

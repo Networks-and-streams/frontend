@@ -1,4 +1,14 @@
-.react-router
-build
+# Build context exclusions — keep secrets and build output out of images.
 node_modules
+dist
+build
+coverage
+.react-router
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
 README.md
