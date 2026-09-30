@@ -34,10 +34,19 @@ export interface ComputeRequest {
 	};
 }
 
+/** Result payload returned by the compute endpoint (algorithm-specific). */
+export interface ComputeResult {
+	source?: number;
+	/** Shortest distance to each reachable vertex (key = vertex id). */
+	distances?: Record<string, number>;
+	/** Shortest route to each reachable vertex (key = vertex id). */
+	paths?: Record<string, number[]>;
+}
+
 /** Response shape for the future compute endpoint. */
 export interface ComputeResponse {
 	status: 'ok' | 'error';
-	result?: unknown;
+	result?: ComputeResult | null;
 	executionTrace?: unknown[];
 	error?: {
 		type: string;
@@ -57,6 +66,35 @@ export const SAMPLE_GRAPH: GraphInput = {
 		{ from: 2, to: 5, weight: 1 },
 	],
 };
+
+/*
+ * Saved-graphs DTO types.
+ *
+ * Backend reference: `backend/src/saved-graphs/` (GET/POST/PATCH/DELETE
+ * `/graphs`). The `graph` payload uses the exact same `GraphInput` shape as
+ * the compute endpoint, so a saved graph can be solved without conversion.
+ */
+
+/** One persisted graph returned by the saved-graphs API. */
+export interface SavedGraph {
+	id: string;
+	name: string;
+	graph: GraphInput;
+	createdAt: string;
+	updatedAt: string;
+}
+
+/** Body for POST /graphs. */
+export interface CreateSavedGraphDto {
+	name: string;
+	graph: GraphInput;
+}
+
+/** Body for PATCH /graphs/:id (at least one field must be present). */
+export interface UpdateSavedGraphDto {
+	name?: string;
+	graph?: GraphInput;
+}
 
 export function isValidGraph(input: GraphInput): boolean {
 	if (input.vertices < 1) return false;
