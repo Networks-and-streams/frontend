@@ -25,6 +25,15 @@ CMD ["npm", "run", "dev"]
 # ── Production build ─────────────────────────────────────────────────────────
 FROM deps AS build
 COPY . .
+# Public build-time Vite config (inlined into the bundle — never secrets).
+ARG VITE_API_URL=
+ARG VITE_GOOGLE_PAY_ENV=TEST
+ARG VITE_GOOGLE_PAY_MERCHANT_ID=
+ARG VITE_STRIPE_PUBLISHABLE_KEY=
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_GOOGLE_PAY_ENV=$VITE_GOOGLE_PAY_ENV \
+    VITE_GOOGLE_PAY_MERCHANT_ID=$VITE_GOOGLE_PAY_MERCHANT_ID \
+    VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY
 RUN npm run build
 
 # ── Production image: static assets served by Nginx (SPA fallback) ──────────

@@ -2,11 +2,19 @@
  * Minimal Google Pay JavaScript SDK wrapper.
  *
  * The SDK script is loaded at runtime from Google's CDN; no npm dependency.
- * Only the subset of the API used by this app is modeled. The token payload
- * produced here matches the backend's `ProcessGooglePayDto` contract
- * (`backend/src/payments/dto/google-pay.dto.ts`) and the Stripe gateway
- * expectations (`backend/src/payments/providers/stripe/stripe.gateway.ts`
- * — handles `tok_` and `pm_` tokens).
+ *
+ * IMPORTANT — namespace: `pay.js` exposes the API at
+ *   window.google.payments.api.PaymentsClient
+ * (verified against the shipped script). Earlier versions of this wrapper read
+ * `window.google.payments.paymentsClient`, which does not exist and made every
+ * initialization attempt throw ("...is not a constructor").
+ *
+ * Token shape: with `tokenizationSpecification.type = 'PAYMENT_GATEWAY'` and
+ * `gateway: 'stripe'`, Google Pay returns a **Stripe token** in
+ * `paymentMethodData.tokenizationData.token`. That is forwarded to the backend
+ * (`POST /payments/:id/google-pay`), which creates a Stripe PaymentMethod and a
+ * confirmed PaymentIntent. The `stripe:publishableKey` parameter is public
+ * (pk_...) and required by Stripe's gateway tokenization.
  */
 
 declare global {
@@ -19,10 +27,15 @@ declare global {
 
 export const GOOGLE_PAY_SDK_URL = 'https://pay.google.com/gp/p/js/pay.js';
 export const GOOGLE_PAY_ENV = 'TEST';
+/** Stripe API version Google Pay uses for gateway tokenization (public). */
+export const GOOGLE_PAY_STRIPE_API_VERSION = '2024-06-20';
 export type GooglePayEnvironment = 'TEST' | 'PRODUCTION';
 
+/** Global `window.google.payments` namespace exposed by the SDK. */
 export interface GooglePayPayments {
-	paymentsClient: new (config: GooglePayClientConfig) => GooglePayClient;
+	api: {
+		PaymentsClient: new (config: GooglePayClientConfig) => GooglePayClient;
+	};
 }
 
 export interface GooglePayClientConfig {
@@ -80,7 +93,10 @@ export interface GooglePayPaymentDataRequest {
 	merchantInfo?: { merchantId: string };
 }
 
-/** Raw token payload sent to POST /payments/:id/google-pay. */
+/**
+ * Tokenization data as produced by Google Pay. For the Stripe gateway this is
+ * `{ type: 'PAYMENT_GATEWAY', token: 'tok_...' | 'pm_...' }`.
+ */
 export interface GooglePayTokenizationData {
 	type: string;
 	token: string;
@@ -102,28 +118,43 @@ export const GOOGLE_PAY_CARD_PARAMETERS: GooglePayCardParameters = {
 	allowedCardNetworks: ['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER'],
 };
 
-/** Tokenization spec for the Stripe gateway (matches backend PAYMENT_PROVIDER=stripe). */
-export const GOOGLE_PAY_TOKENIZATION: GooglePayTokenizationSpecification = {
-	type: 'PAYMENT_GATEWAY',
-	parameters: {
-		gateway: 'stripe',
-		'stripe:version': '2024-06-20',
-	},
-};
-
+/** Public Google Pay environment (TEST unless explicitly PRODUCTION). */
 export function getGooglePayEnvironment(): GooglePayEnvironment {
 	return import.meta.env.VITE_GOOGLE_PAY_ENV === 'PRODUCTION' ? 'PRODUCTION' : GOOGLE_PAY_ENV;
 }
 
+/** Google merchant ID. Optional in TEST, required in PRODUCTION. */
 export function getGooglePayMerchantId(): string | null {
 	return import.meta.env.VITE_GOOGLE_PAY_MERCHANT_ID || null;
+}
+
+/**
+ * Stripe publishable key (public, `pk_...`). Identifies the Stripe account to
+ * Google Pay's gateway tokenization. Never a secret — the secret key stays on
+ * the backend only.
+ */
+export function getStripePublishableKey(): string | null {
+	return import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || null;
+}
+
+/** Builds the (public) Stripe gateway tokenization specification. */
+function buildTokenizationSpecification(): GooglePayTokenizationSpecification {
+	const publishableKey = getStripePublishableKey();
+	return {
+		type: 'PAYMENT_GATEWAY',
+		parameters: {
+			gateway: 'stripe',
+			'stripe:version': GOOGLE_PAY_STRIPE_API_VERSION,
+			...(publishableKey ? { 'stripe:publishableKey': publishableKey } : {}),
+		},
+	};
 }
 
 function cardPaymentMethod(withTokenization: boolean): GooglePayAllowedPaymentMethod {
 	return {
 		type: 'CARD',
 		parameters: GOOGLE_PAY_CARD_PARAMETERS,
-		...(withTokenization ? { tokenizationSpecification: GOOGLE_PAY_TOKENIZATION } : {}),
+		...(withTokenization ? { tokenizationSpecification: buildTokenizationSpecification() } : {}),
 	};
 }
 
@@ -131,7 +162,8 @@ export function buildIsReadyToPayRequest(): GooglePayIsReadyToPayRequest {
 	return {
 		apiVersion: 2,
 		apiVersionMinor: 0,
-		existingPaymentMethodRequired: true,
+		// Allow users without a saved card to add one in the sheet.
+		existingPaymentMethodRequired: false,
 		allowedPaymentMethods: [cardPaymentMethod(false)],
 	};
 }
@@ -160,8 +192,9 @@ let sdkPromise: Promise<GooglePayPayments> | null = null;
 export function loadGooglePay(): Promise<GooglePayPayments> {
 	if (!sdkPromise) {
 		sdkPromise = new Promise((resolve, reject) => {
-			if (window.google?.payments) {
-				resolve(window.google.payments);
+			const payments = window.google?.payments;
+			if (payments?.api?.PaymentsClient) {
+				resolve(payments);
 				return;
 			}
 
@@ -169,13 +202,19 @@ export function loadGooglePay(): Promise<GooglePayPayments> {
 			script.src = GOOGLE_PAY_SDK_URL;
 			script.async = true;
 			script.onload = () => {
-				if (window.google?.payments) {
-					resolve(window.google.payments);
+				const loaded = window.google?.payments;
+				if (loaded?.api?.PaymentsClient) {
+					resolve(loaded);
 				} else {
-					reject(new Error('Google Pay SDK loaded but the payments namespace is missing.'));
+					reject(
+						new Error(
+							'Google Pay SDK loaded but google.payments.api.PaymentsClient is missing — ' +
+								'the script namespace may have changed.',
+						),
+					);
 				}
 			};
-			script.onerror = () => reject(new Error('Failed to load the Google Pay SDK.'));
+			script.onerror = () => reject(new Error(`Failed to load the Google Pay SDK from ${GOOGLE_PAY_SDK_URL}`));
 			document.head.appendChild(script);
 		});
 	}

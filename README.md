@@ -106,9 +106,13 @@ Copy `.env.example` to `.env` and adjust:
 
 | Variable                     | Default               | Purpose                                   |
 | ---------------------------- | --------------------- | ----------------------------------------- |
-| `VITE_API_URL`               | `http://localhost:3000`| Backend base URL (must be in backend `CORS_ORIGINS`) |
-| `VITE_GOOGLE_PAY_ENV`        | `TEST`                | Google Pay environment (`TEST` / `PRODUCTION`) |
-| `VITE_GOOGLE_PAY_MERCHANT_ID`| —                     | Merchant ID (required only in `PRODUCTION`) |
+| `VITE_API_URL`               | *(unset → relative `/api`)* | Override the backend base URL (normally leave unset; Nginx/Vite route `/api`) |
+| `VITE_GOOGLE_PAY_ENV`        | `TEST`                | Google Pay environment (`TEST` / `PRODUCTION`); must match the Stripe key mode |
+| `VITE_GOOGLE_PAY_MERCHANT_ID`| —                     | Google merchant ID (required only in `PRODUCTION`) |
+| `VITE_STRIPE_PUBLISHABLE_KEY`| —                     | Public Stripe publishable key (`pk_test_...`) — required for Google Pay's Stripe gateway tokenization |
+
+> Only `VITE_`-prefixed **public** values belong here. The Stripe secret key
+> (`STRIPE_SECRET_KEY`) and webhook secret stay on the backend only.
 
 CORS/cookies: the backend is configured with `credentials: true` and specific
 origins; keep the dev origin (`http://localhost:5173`) on the backend list.
