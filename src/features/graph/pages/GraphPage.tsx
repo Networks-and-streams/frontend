@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AppShell from '@/app/components/AppShell';
 import Button from '@/shared/components/ui/Button/Button';
@@ -8,7 +8,6 @@ import { ApiError, getApiErrorMessage } from '@/shared/api/http';
 import { toast } from '@/shared/store/toastStore';
 import { graphApi } from '../api/graph.api';
 import { savedGraphsApi } from '../api/savedGraphs.api';
-import GraphCanvas from '../components/GraphCanvas';
 import GraphInputPanel from '../components/GraphInputPanel';
 import SavedGraphsPanel from '../components/SavedGraphsPanel';
 import { useGraphEditorStore } from '../store/graphEditorStore';
@@ -19,6 +18,9 @@ import {
 	type ComputeResponse,
 	type GraphAlgorithm,
 } from '../types';
+
+// Cytoscape + ELK are heavy — load them only when the workspace renders.
+const GraphVisualization = lazy(() => import('../components/GraphVisualization'));
 
 type RunState = 'idle' | 'running' | 'error';
 
@@ -283,7 +285,9 @@ export default function GraphPage() {
 
 					<section className="flex min-w-0 flex-col gap-6">
 						<div className="rounded-3xl border border-border bg-card p-4">
-							<GraphCanvas graph={graph} />
+							<Suspense fallback={<div className="h-[380px] w-full animate-pulse rounded-2xl bg-muted/40" />}>
+								<GraphVisualization graph={graph} result={response?.result ?? null} />
+							</Suspense>
 						</div>
 
 						<div className="rounded-3xl border border-border bg-card p-5 space-y-4">
