@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import FullScreenLoader from '@/app/components/FullScreenLoader';
 import { useAuthStore } from '../store/auth';
 
@@ -11,6 +12,7 @@ import { useAuthStore } from '../store/auth';
  */
 export default function AuthCallbackPage() {
 	const navigate = useNavigate();
+	const { t } = useTranslation();
 	const bootstrap = useAuthStore((s) => s.bootstrap);
 	const processed = useRef(false);
 
@@ -27,5 +29,5 @@ export default function AuthCallbackPage() {
 			});
 	}, [bootstrap, navigate]);
 
-	return <FullScreenLoader message="Restoring your session…" />;
+	return <FullScreenLoader message={t('common.restoringSession')} />;
 }

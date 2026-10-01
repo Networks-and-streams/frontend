@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import AppShell from '@/app/components/AppShell';
 import Button from '@/shared/components/ui/Button/Button';
 import StateBlock from '@/shared/components/ui/StateBlock/StateBlock';
@@ -34,6 +35,7 @@ type RunState = 'idle' | 'running' | 'error';
  * synchronized with the canonical backend response only after Save/Update.
  */
 export default function GraphPage() {
+	const { t } = useTranslation();
 	const graph = useGraphEditorStore((s) => s.graph);
 	const graphId = useGraphEditorStore((s) => s.graphId);
 	const graphName = useGraphEditorStore((s) => s.name);
@@ -120,16 +122,21 @@ export default function GraphPage() {
 			else store.updateGraph(saved);
 
 			markSaved(saved.id, saved.name, saved.graph);
-			toast.success(asNew ? 'Saved as new graph' : graphId ? 'Graph updated' : 'Graph saved', saved.name);
+			const toastTitle = asNew
+				? t('graphPage.toasts.savedAsNew')
+				: graphId
+					? t('graphPage.toasts.updated')
+					: t('graphPage.toasts.saved');
+			toast.success(toastTitle, saved.name);
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 404 && graphId) {
 				// The saved graph no longer exists — drop the stale reference and
 				// keep the content as an editable new graph.
 				useSavedGraphsStore.getState().removeGraph(graphId);
 				markUnsaved();
-				toast.error('Saved graph no longer exists', 'Save it again to create a new copy.');
+				toast.error(t('graphPage.toasts.noLongerExists'), t('graphPage.toasts.noLongerExistsDetail'));
 			} else {
-				toast.error('Could not save graph', getApiErrorMessage(error));
+				toast.error(t('graphPage.toasts.couldNotSave'), getApiErrorMessage(error));
 			}
 		} finally {
 			setSaving(false);
@@ -139,11 +146,11 @@ export default function GraphPage() {
 	const canSave = !saving && graphName.trim().length > 0 && isValidGraph(graph);
 	const statusBadge = isDirty ? (
 		<span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-300">
-			Unsaved changes
+			{t('graphPage.saveCard.unsaved')}
 		</span>
 	) : graphId ? (
 		<span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-[11px] font-medium text-accent">
-			Saved
+			{t('graphPage.saveCard.saved')}
 		</span>
 	) : null;
 
@@ -151,10 +158,8 @@ export default function GraphPage() {
 		<AppShell>
 			<div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
 				<div className="flex flex-col gap-1">
-					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Graph Resolver</h1>
-					<p className="text-sm text-foreground/50">
-						Solve graph problems step by step with an interactive workspace.
-					</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('common.appName')}</h1>
+					<p className="text-sm text-foreground/50">{t('graphPage.subtitle')}</p>
 				</div>
 
 				<div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
@@ -168,28 +173,33 @@ export default function GraphPage() {
 						<div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5">
 							<div className="flex items-center justify-between gap-2">
 								<h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/40">
-									Graph
+									{t('graphPage.saveCard.title')}
 								</h2>
 								<div className="flex items-center gap-2">
 									{statusBadge}
-									<Button variant="ghost" size="sm" onClick={handleNew} title="Start a new graph">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={handleNew}
+										title={t('graphPage.saveCard.newTitle')}
+									>
 										<PlusIcon size={14} />
-										New
+										{t('graphPage.saveCard.new')}
 									</Button>
 								</div>
 							</div>
 
 							<div className="flex flex-col gap-1.5">
 								<label htmlFor="graph-name" className="text-xs text-foreground/50">
-									Name
+									{t('graphPage.saveCard.name')}
 								</label>
 								<input
 									id="graph-name"
 									type="text"
 									value={graphName}
 									onChange={(e) => setName(e.target.value)}
-									placeholder="e.g. Dijkstra test graph"
-									className="rounded-xl border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-foreground/30 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
+									placeholder={t('graphPage.saveCard.namePlaceholder')}
+									className="h-10 w-full rounded-xl border border-border bg-muted px-3 text-sm text-foreground placeholder:text-foreground/30 transition-all duration-200 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
 								/>
 							</div>
 
@@ -203,12 +213,12 @@ export default function GraphPage() {
 									{saving ? (
 										<>
 											<SpinnerIcon size={15} className="animate-spin" />
-											Saving…
+											{t('graphPage.saveCard.saving')}
 										</>
 									) : (
 										<>
 											<SaveIcon size={15} />
-											{graphId ? 'Save changes' : 'Save'}
+											{graphId ? t('graphPage.saveCard.saveChanges') : t('graphPage.saveCard.save')}
 										</>
 									)}
 								</Button>
@@ -216,17 +226,15 @@ export default function GraphPage() {
 									variant="secondary"
 									onClick={() => handleSave(true)}
 									disabled={!canSave}
-									title="Create a new saved graph from the current editor content"
+									title={t('graphPage.saveCard.saveAsNewTitle')}
 									className="w-full"
 								>
-									Save as new
+									{t('graphPage.saveCard.saveAsNew')}
 								</Button>
 							</div>
 
 							<p className="text-[11px] leading-relaxed text-foreground/40">
-								{graphId
-									? 'Save changes updates the selected saved graph; "Save as new" creates a copy.'
-									: 'Your browser may ask before leaving with unsaved changes. Saved graphs live on your account.'}
+								{graphId ? t('graphPage.saveCard.hasChangesInfo') : t('graphPage.saveCard.newGraphInfo')}
 							</p>
 						</div>
 
@@ -239,16 +247,18 @@ export default function GraphPage() {
 										htmlFor="algorithm-select"
 										className="text-xs uppercase tracking-[0.2em] text-foreground/40"
 									>
-										Algorithm
+										{t('graphPage.algorithm.label')}
 									</label>
 									<select
 										id="algorithm-select"
 										value={algorithm}
 										onChange={(e) => setAlgorithm(e.target.value as GraphAlgorithm)}
-										className="rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground transition-all duration-200 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
+										className="h-10 w-full rounded-xl border border-border bg-muted px-3 text-sm text-foreground transition-all duration-200 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
 									>
-										<option value={GRAPH_ALGORITHM.MINTY}>Minty (shortest paths)</option>
-										<option value={GRAPH_ALGORITHM.FORD_FULKERSON}>Ford–Fulkerson (max flow)</option>
+										<option value={GRAPH_ALGORITHM.MINTY}>{t('graphPage.algorithm.minty')}</option>
+										<option value={GRAPH_ALGORITHM.FORD_FULKERSON}>
+											{t('graphPage.algorithm.fordFulkerson')}
+										</option>
 									</select>
 								</div>
 
@@ -261,10 +271,10 @@ export default function GraphPage() {
 									{runState === 'running' ? (
 										<>
 											<SpinnerIcon size={16} className="animate-spin" />
-											Solving…
+											{t('graphPage.algorithm.solving')}
 										</>
 									) : (
-										<>Run algorithm</>
+										<>{t('graphPage.algorithm.run')}</>
 									)}
 								</Button>
 							</div>
@@ -281,28 +291,24 @@ export default function GraphPage() {
 								<div className="flex items-start gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3">
 									<AlertIcon size={18} className="mt-0.5 shrink-0 text-rose-400" />
 									<div className="flex flex-col gap-0.5 text-sm">
-										<p className="font-medium text-rose-300">Compute failed</p>
+										<p className="font-medium text-rose-300">{t('graphPage.run.failedTitle')}</p>
 										<p className="text-xs text-rose-300/70">{runError}</p>
 									</div>
 								</div>
 							) : response ? (
 								<div className="flex flex-col gap-4">
 									<h3 className="text-sm font-semibold text-foreground">
-										Кратчайшие пути от вершины {response.result?.source}
+										{t('graphPage.run.shortestPathsTitle', { source: response.result?.source })}
 									</h3>
 
-									{/* Список путей и их весов */}
+									{/* Solver result rows: route to each reachable vertex. */}
 									<div className="flex flex-col gap-2">
 										{response.result?.paths &&
 											Object.entries(response.result.paths).map(([targetVertex, pathArray]) => {
-												// Получаем общий вес для этой вершины из distances
 												const weight = response.result?.distances?.[targetVertex] ?? 0;
 
-												// Пропускаем стартовую вершину, если путь состоит только из нее самой (опционально)
-												if (
-													pathArray.length <= 1 &&
-													Number(targetVertex) === response.result?.source
-												) {
+												// Skip the source vertex when its route is just itself.
+												if (pathArray.length <= 1 && Number(targetVertex) === response.result?.source) {
 													return null;
 												}
 
@@ -312,13 +318,16 @@ export default function GraphPage() {
 														className="flex items-center justify-between rounded-xl bg-muted px-4 py-3 text-xs font-mono text-foreground border border-border/50"
 													>
 														<div className="flex items-center gap-2">
-															<span className="text-foreground/50">До {targetVertex}:</span>
+															<span className="text-foreground/50">
+																{t('graphPage.run.toVertex', { vertex: targetVertex })}
+															</span>
 															<span className="font-semibold text-accent">
 																{pathArray.join(' -> ')}
 															</span>
 														</div>
 														<span className="rounded-lg bg-card px-2.5 py-1 text-foreground/80 border border-border">
-															вес: <strong className="text-foreground">{weight}</strong>
+															{t('graphPage.run.weight')}{' '}
+															<strong className="text-foreground">{weight}</strong>
 														</span>
 													</div>
 												);
@@ -328,8 +337,8 @@ export default function GraphPage() {
 							) : (
 								<StateBlock
 									icon={<GraphIcon size={22} />}
-									title="No results yet"
-									description="Run the selected algorithm to see the result and execution trace here."
+									title={t('graphPage.run.noResultsTitle')}
+									description={t('graphPage.run.noResultsDescription')}
 								/>
 							)}
 						</div>

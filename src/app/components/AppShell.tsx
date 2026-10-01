@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Button from '@/shared/components/ui/Button/Button';
+import LanguageSwitcher from '@/shared/components/ui/LanguageSwitcher/LanguageSwitcher';
 import { GraphIcon, LogoutIcon } from '@/shared/icons';
 import { useAuthStore } from '@/features/auth/store/auth';
 
@@ -9,12 +11,13 @@ interface AppShellProps {
 }
 
 /**
- * Application shell: shared header with the product brand and the
- * authenticated user's session controls. Used by the subscription and
+ * Application shell: shared header with the product brand, the locale toggle
+ * and the authenticated user's session controls. Used by the subscription and
  * graph-resolver pages.
  */
 export default function AppShell({ children }: AppShellProps) {
 	const navigate = useNavigate();
+	const { t } = useTranslation();
 	const user = useAuthStore((s) => s.user);
 	const logout = useAuthStore((s) => s.logout);
 
@@ -33,7 +36,7 @@ export default function AppShell({ children }: AppShellProps) {
 							<GraphIcon size={18} />
 						</span>
 						<span className="text-base font-semibold tracking-tight text-foreground">
-							Graph Resolver
+							{t('common.appName')}
 						</span>
 					</div>
 
@@ -43,9 +46,10 @@ export default function AppShell({ children }: AppShellProps) {
 								{user.email}
 							</span>
 						)}
+						<LanguageSwitcher />
 						<Button variant="ghost" size="sm" onClick={handleLogout}>
 							<LogoutIcon size={16} />
-							Sign out
+							{t('common.signOut')}
 						</Button>
 					</div>
 				</div>

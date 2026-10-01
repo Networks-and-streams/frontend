@@ -1,5 +1,6 @@
 // src/features/graph/store/savedGraphsStore.ts
 import { create } from 'zustand';
+import { i18n } from '@/shared/i18n';
 import { savedGraphsApi } from '../api/savedGraphs.api';
 import type { SavedGraph } from '../types';
 
@@ -51,7 +52,7 @@ export const useSavedGraphsStore = create<SavedGraphsState>((set, get) => ({
 			set({
 				isLoading: false,
 				fetched: true,
-				error: error instanceof Error ? error.message : 'Failed to load saved graphs.',
+				error: error instanceof Error ? error.message : i18n.t('errors.failedToLoadSavedGraphs'),
 			});
 		}
 	},

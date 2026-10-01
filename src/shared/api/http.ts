@@ -1,4 +1,5 @@
 import axios, { AxiosError, type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import { i18n } from '@/shared/i18n';
 
 /** Axios config extended with the auth opt-out flag used by public endpoints. */
 export interface RequestConfig extends AxiosRequestConfig {
@@ -97,7 +98,7 @@ client.interceptors.response.use(
 			}
 
 			onUnauthorized?.();
-			throw new ApiError(error, 'Your session has expired. Please sign in again.');
+			throw new ApiError(error, i18n.t('errors.sessionExpired'));
 		}
 
 		// Let requests that explicitly opted out of auth (register/login/refresh)
@@ -126,10 +127,12 @@ export class ApiError extends Error {
 	}
 }
 
-export function getApiErrorMessage(error: unknown, fallback = 'Something went wrong.'): string {
-	if (error instanceof ApiError) return error.message || fallback;
-	if (error instanceof Error) return error.message || fallback;
-	return fallback;
+export function getApiErrorMessage(error: unknown, fallback?: string): string {
+	const defaultMessage = i18n.t('errors.somethingWentWrong');
+	const resolvedFallback = fallback ?? defaultMessage;
+	if (error instanceof ApiError) return error.message || resolvedFallback;
+	if (error instanceof Error) return error.message || resolvedFallback;
+	return resolvedFallback;
 }
 
 export default {

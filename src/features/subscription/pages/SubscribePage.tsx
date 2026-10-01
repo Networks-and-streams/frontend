@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ApiError, getApiErrorMessage } from '@/shared/api/http';
 import Button from '@/shared/components/ui/Button/Button';
 import AppShell from '@/app/components/AppShell';
@@ -33,13 +34,9 @@ function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function failureReason(payment: Payment): string | null {
-	const reason = payment.providerMetadata?.failureReason;
-	return typeof reason === 'string' && reason.length > 0 ? reason : null;
-}
-
 export default function SubscribePage() {
 	const navigate = useNavigate();
+	const { t } = useTranslation();
 	const fetchSubscription = useSubscriptionStore((s) => s.fetch);
 	const subscription = useSubscriptionStore((s) => s.subscription);
 
@@ -62,13 +59,18 @@ export default function SubscribePage() {
 			}
 
 			if (payment.status === PAYMENT_STATUS.FAILED) {
-				setPayPhase({ status: 'failed', reason: failureReason(payment) ?? 'The payment was declined.' });
+				const reason = payment.providerMetadata?.failureReason;
+				setPayPhase({
+					status: 'failed',
+					reason:
+						typeof reason === 'string' && reason.length > 0 ? reason : t('subscription.paymentDeclined'),
+				});
 				return;
 			}
 
 			setPayPhase({ status: 'cancelled' });
 		},
-		[fetchSubscription],
+		[fetchSubscription, t],
 	);
 
 	const pollUntilTerminal = useCallback(
@@ -95,7 +97,7 @@ export default function SubscribePage() {
 				});
 				paymentIdRef.current = created.id;
 			} catch (error) {
-				setPayPhase({ status: 'failed', reason: getApiErrorMessage(error, 'Could not create the payment.') });
+				setPayPhase({ status: 'failed', reason: getApiErrorMessage(error, t('subscription.couldNotCreatePayment')) });
 				return;
 			}
 
@@ -111,14 +113,14 @@ export default function SubscribePage() {
 					} catch (inner) {
 						setPayPhase({
 							status: 'failed',
-							reason: getApiErrorMessage(inner, 'Payment processing failed.'),
+							reason: getApiErrorMessage(inner, t('subscription.paymentProcessingFailed')),
 						});
 						return;
 					}
 				} else {
 					setPayPhase({
 						status: 'failed',
-						reason: getApiErrorMessage(error, 'Payment processing failed.'),
+						reason: getApiErrorMessage(error, t('subscription.paymentProcessingFailed')),
 					});
 					return;
 				}
@@ -137,7 +139,7 @@ export default function SubscribePage() {
 			}
 			// Timeout: stay in 'processing' and let the user re-check manually.
 		},
-		[finalize, pollUntilTerminal],
+		[finalize, pollUntilTerminal, t],
 	);
 
 	const checkPaymentStatus = useCallback(async () => {
@@ -150,9 +152,9 @@ export default function SubscribePage() {
 				await finalize(payment);
 			}
 		} catch (error) {
-			setPayPhase({ status: 'failed', reason: getApiErrorMessage(error, 'Could not check the payment status.') });
+			setPayPhase({ status: 'failed', reason: getApiErrorMessage(error, t('subscription.couldNotCheckStatus')) });
 		}
-	}, [finalize]);
+	}, [finalize, t]);
 
 	const retry = useCallback(() => {
 		setPayPhase({ status: 'idle' });
@@ -164,6 +166,12 @@ export default function SubscribePage() {
 	}, [navigate]);
 
 	const priceLabel = formatPrice(PREMIUM_PLAN_CONFIG.amountCents, PREMIUM_PLAN_CONFIG.currency);
+	const featureKeys = [
+		'subscription.features.editor',
+		'subscription.features.visualization',
+		'subscription.features.algorithms',
+		'subscription.features.traces',
+	] as const;
 
 	return (
 		<AppShell>
@@ -171,31 +179,22 @@ export default function SubscribePage() {
 				<section className="flex flex-col gap-6">
 					<div className="flex flex-col gap-2">
 						<h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-							Subscribe to Graph Resolver
+							{t('subscription.title')}
 						</h1>
-						<p className="text-sm leading-relaxed text-foreground/50">
-							A premium subscription unlocks the full graph-solving workspace. Your
-							subscription is linked to your account and managed through the backend
-							payment gateway.
-						</p>
+						<p className="text-sm leading-relaxed text-foreground/50">{t('subscription.description')}</p>
 					</div>
 
 					<div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-6">
 						<h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/40">
-							What you get
+							{t('subscription.whatYouGet')}
 						</h2>
 						<ul className="flex flex-col gap-3 text-sm text-foreground/70">
-							{[
-								'Graph input editor with validation',
-								'Graph visualization and step-by-step results',
-								'Minty shortest-path and Ford–Fulkerson max-flow algorithms',
-								'Execution traces for algorithm analysis',
-							].map((item) => (
-								<li key={item} className="flex items-center gap-3">
+							{featureKeys.map((key) => (
+								<li key={key} className="flex items-center gap-3">
 									<span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
 										<CheckIcon size={12} />
 									</span>
-									{item}
+									{t(key)}
 								</li>
 							))}
 						</ul>
@@ -203,9 +202,9 @@ export default function SubscribePage() {
 
 					{subscription && (
 						<p className="text-xs text-foreground/40">
-							Current plan:{' '}
+							{t('subscription.currentPlan')}{' '}
 							<span className="font-medium text-foreground/70">{subscription.plan}</span>{' '}
-							· status:{' '}
+							· {t('subscription.statusLabel')}{' '}
 							<span className="font-medium text-foreground/70">{subscription.status}</span>
 						</p>
 					)}
@@ -213,17 +212,16 @@ export default function SubscribePage() {
 
 				<section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 lg:self-start">
 					<div className="flex items-baseline justify-between">
-						<span className="text-sm font-medium text-foreground/60">Premium</span>
+						<span className="text-sm font-medium text-foreground/60">{t('subscription.premium')}</span>
 						<span className="flex items-baseline gap-1">
 							<span className="text-3xl font-semibold tracking-tight text-foreground">{priceLabel}</span>
-							<span className="text-sm text-foreground/40">/ {PREMIUM_PLAN_CONFIG.durationDays} days</span>
+							<span className="text-sm text-foreground/40">
+								{t('subscription.perDays', { count: PREMIUM_PLAN_CONFIG.durationDays })}
+							</span>
 						</span>
 					</div>
 
-					<p className="text-xs leading-relaxed text-foreground/40">
-						One-time payment processed by the backend provider (Stripe). The backend
-						determines the final amount and currency.
-					</p>
+					<p className="text-xs leading-relaxed text-foreground/40">{t('subscription.paymentNote')}</p>
 
 					{payPhase.status === 'idle' && (
 						<GooglePayButton
@@ -237,18 +235,18 @@ export default function SubscribePage() {
 
 					{(payPhase.status === 'creating' || payPhase.status === 'submitting') && (
 						<PaymentStatusBlock
-							title="Starting your payment…"
-							description="Sending the payment to the backend gateway."
+							title={t('subscription.startingPayment')}
+							description={t('subscription.sendingPayment')}
 						/>
 					)}
 
 					{payPhase.status === 'processing' && (
 						<PaymentStatusBlock
-							title="Payment processing"
-							description="The provider is confirming your payment. This can take a few moments."
+							title={t('subscription.paymentProcessing')}
+							description={t('subscription.paymentProcessingNote')}
 							action={
 								<Button variant="secondary" size="sm" onClick={checkPaymentStatus}>
-									Check status
+									{t('subscription.checkStatus')}
 								</Button>
 							}
 						/>
@@ -256,33 +254,33 @@ export default function SubscribePage() {
 
 					{payPhase.status === 'succeeded' && (
 						<PaymentStatusBlock
-							title="Payment confirmed"
-							description="Verifying your subscription and unlocking the app…"
+							title={t('subscription.paymentConfirmed')}
+							description={t('subscription.verifyingSubscription')}
 						/>
 					)}
 
 					{payPhase.status === 'failed' && (
 						<div className="flex flex-col gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-4">
-							<p className="text-sm font-medium text-rose-300">Payment failed</p>
+							<p className="text-sm font-medium text-rose-300">{t('subscription.paymentFailed')}</p>
 							<p className="text-xs leading-relaxed text-rose-300/70">{payPhase.reason}</p>
 							<Button variant="secondary" size="sm" onClick={retry} className="self-start">
-								Try again
+								{t('subscription.tryAgain')}
 							</Button>
 						</div>
 					)}
 
 					{payPhase.status === 'cancelled' && (
 						<div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted px-4 py-4">
-							<p className="text-sm text-foreground/70">Payment cancelled.</p>
+							<p className="text-sm text-foreground/70">{t('subscription.paymentCancelled')}</p>
 							<Button variant="secondary" size="sm" onClick={retry} className="self-start">
-								Try again
+								{t('subscription.tryAgain')}
 							</Button>
 						</div>
 					)}
 
 					{payPhase.status === 'succeeded' && gpayState === 'ready' && (
 						<Button variant="secondary" onClick={goToApp} className="w-full">
-							Go to the app
+							{t('subscription.goToApp')}
 						</Button>
 					)}
 				</section>
@@ -291,6 +289,10 @@ export default function SubscribePage() {
 	);
 }
 
+/**
+ * Payment state block shown while the payment is being created, processed or
+ * confirmed at the provider.
+ */
 function PaymentStatusBlock({
 	title,
 	description,

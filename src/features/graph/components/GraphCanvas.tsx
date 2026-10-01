@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { GraphEdge, GraphInput } from '../types';
 
 interface GraphCanvasProps {
@@ -67,13 +68,17 @@ function EdgeLine({ edge, from, to }: { edge: GraphEdge; from: Point; to: Point 
  * compute integration.
  */
 export default function GraphCanvas({ graph, className = '' }: GraphCanvasProps) {
+	const { t } = useTranslation();
 	const nodes = useMemo(() => layoutNodes(graph.vertices), [graph.vertices]);
 
 	return (
 		<svg
 			viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
 			role="img"
-			aria-label={`Graph with ${graph.vertices} vertices and ${graph.edges.length} edges`}
+			aria-label={t('graphPage.canvas.ariaLabel', {
+				vertices: graph.vertices,
+				edges: graph.edges.length,
+			})}
 			className={`h-auto w-full ${className}`}
 		>
 			<defs>
@@ -111,7 +116,7 @@ export default function GraphCanvas({ graph, className = '' }: GraphCanvasProps)
 						</text>
 						{isSource && (
 							<text y={-26} textAnchor="middle" fontSize={10} fill="var(--accent)" fontWeight={600}>
-								source
+								{t('graphPage.canvas.source')}
 							</text>
 						)}
 					</g>

@@ -1,9 +1,11 @@
 // src/features/graph/components/SavedGraphsPanel.tsx
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/shared/components/ui/Button/Button';
 import StateBlock from '@/shared/components/ui/StateBlock/StateBlock';
 import { AlertIcon, GraphIcon, SpinnerIcon, TrashIcon } from '@/shared/icons';
 import { ApiError, getApiErrorMessage } from '@/shared/api/http';
+import { i18n } from '@/shared/i18n';
 import { toast } from '@/shared/store/toastStore';
 import { savedGraphsApi } from '../api/savedGraphs.api';
 import { useSavedGraphsStore } from '../store/savedGraphsStore';
@@ -18,7 +20,7 @@ interface SavedGraphsPanelProps {
 function formatUpdatedAt(value: string): string {
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return '';
-	return date.toLocaleString(undefined, {
+	return date.toLocaleString(i18n.language || 'en', {
 		year: 'numeric',
 		month: 'short',
 		day: 'numeric',
@@ -32,6 +34,7 @@ function formatUpdatedAt(value: string): string {
  * (loaded once per session), so opening a graph is an instant local selection.
  */
 export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps) {
+	const { t } = useTranslation();
 	const graphs = useSavedGraphsStore((s) => s.graphs);
 	const isLoading = useSavedGraphsStore((s) => s.isLoading);
 	const error = useSavedGraphsStore((s) => s.error);
@@ -55,9 +58,9 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 		} catch (openError) {
 			if (openError instanceof ApiError && openError.status === 404) {
 				useSavedGraphsStore.getState().removeGraph(graph.id);
-				toast.error('Graph no longer exists', 'It may have been deleted.');
+				toast.error(t('savedGraphs.toasts.noLongerExists'), t('savedGraphs.toasts.noLongerExistsDetail'));
 			} else {
-				toast.error('Could not open graph', getApiErrorMessage(openError));
+				toast.error(t('savedGraphs.toasts.couldNotOpen'), getApiErrorMessage(openError));
 			}
 		}
 	};
@@ -67,14 +70,14 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 		try {
 			await savedGraphsApi.deleteGraph(id);
 			useSavedGraphsStore.getState().removeGraph(id);
-			toast.success('Graph deleted');
+			toast.success(t('savedGraphs.toasts.deleted'));
 		} catch (deleteError) {
 			if (deleteError instanceof ApiError && deleteError.status === 404) {
 				// Already gone — drop the stale reference locally.
 				useSavedGraphsStore.getState().removeGraph(id);
-				toast.error('Graph no longer exists', 'It may have been deleted.');
+				toast.error(t('savedGraphs.toasts.noLongerExists'), t('savedGraphs.toasts.noLongerExistsDetail'));
 			} else {
-				toast.error('Could not delete graph', getApiErrorMessage(deleteError));
+				toast.error(t('savedGraphs.toasts.couldNotDelete'), getApiErrorMessage(deleteError));
 			}
 		} finally {
 			setDeletingId(null);
@@ -85,7 +88,9 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-between">
-				<h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/40">My Graphs</h2>
+				<h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/40">
+					{t('savedGraphs.title')}
+				</h2>
 				{graphs.length > 0 && (
 					<span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground/50">
 						{graphs.length}
@@ -114,25 +119,27 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 									type="button"
 									onClick={() => handleOpen(graph)}
 									className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl text-left"
-									title={`Open "${graph.name}"`}
+									title={t('savedGraphs.openTitle', { name: graph.name })}
 								>
 									<GraphIcon size={16} className={`shrink-0 ${isOpen ? 'text-accent' : 'text-foreground/40'}`} />
 									<span className="flex min-w-0 flex-col gap-0.5">
 										<span className="truncate text-sm font-medium text-foreground">{graph.name}</span>
 										{updatedAt && (
-											<span className="text-[11px] text-foreground/40">Updated {updatedAt}</span>
+											<span className="text-[11px] text-foreground/40">
+												{t('savedGraphs.updated', { date: updatedAt })}
+											</span>
 										)}
 									</span>
 								</button>
 
 								{isConfirming ? (
 									<span className="flex items-center gap-1.5">
-										<span className="text-[11px] text-foreground/50">Delete?</span>
+										<span className="text-[11px] text-foreground/50">{t('savedGraphs.deleteQuestion')}</span>
 										<Button variant="danger" size="sm" onClick={() => handleDelete(graph.id)} disabled={isDeleting}>
-											{isDeleting ? 'Deleting…' : 'Yes'}
+											{isDeleting ? t('savedGraphs.deleting') : t('savedGraphs.yes')}
 										</Button>
 										<Button variant="ghost" size="sm" onClick={() => setConfirmingId(null)}>
-											No
+											{t('savedGraphs.no')}
 										</Button>
 									</span>
 								) : (
@@ -140,8 +147,8 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 										type="button"
 										onClick={() => setConfirmingId(graph.id)}
 										className="rounded-lg p-1.5 text-foreground/30 transition-colors hover:bg-rose-500/10 hover:text-rose-400"
-										title="Delete graph"
-										aria-label={`Delete ${graph.name}`}
+										title={t('savedGraphs.deleteTitle')}
+										aria-label={t('savedGraphs.deleteAriaLabel', { name: graph.name })}
 									>
 										<TrashIcon size={15} />
 									</button>
@@ -153,16 +160,16 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 			) : isLoading ? (
 				<div className="flex items-center justify-center gap-2 py-8 text-foreground/40">
 					<SpinnerIcon size={16} className="animate-spin" />
-					<span className="text-sm">Loading saved graphs…</span>
+					<span className="text-sm">{t('savedGraphs.loading')}</span>
 				</div>
 			) : error ? (
 				<StateBlock
 					icon={<AlertIcon size={20} />}
-					title="Could not load saved graphs"
+					title={t('savedGraphs.loadErrorTitle')}
 					description={error}
 					action={
 						<Button variant="secondary" size="sm" onClick={() => void fetchGraphs()}>
-							Retry
+							{t('common.retry')}
 						</Button>
 					}
 					className="py-8"
@@ -170,8 +177,8 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 			) : (
 				<StateBlock
 					icon={<GraphIcon size={20} />}
-					title="No saved graphs yet"
-					description="Save a graph from the editor below to reuse it later."
+					title={t('savedGraphs.emptyTitle')}
+					description={t('savedGraphs.emptyDescription')}
 					className="py-8"
 				/>
 			)}

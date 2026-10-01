@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '@/shared/components/ui/Button/Button';
 import { AlertIcon } from '@/shared/icons';
+import { resolveLocale } from '@/shared/i18n';
 import {
 	buildIsReadyToPayRequest,
 	buildPaymentDataRequest,
@@ -37,6 +39,7 @@ interface GooglePayButtonProps {
  * page owns the full payment state machine.
  */
 export default function GooglePayButton({ priceCents, currency, disabled, onToken, onStateChange }: GooglePayButtonProps) {
+	const { t, i18n } = useTranslation();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [state, setState] = useState<GooglePayButtonState>('loading');
 
@@ -93,7 +96,7 @@ export default function GooglePayButton({ priceCents, currency, disabled, onToke
 					buttonType: 'pay',
 					buttonColor: 'black',
 					buttonSizeMode: 'fill',
-					buttonLocale: 'en',
+					buttonLocale: resolveLocale(i18n.language),
 				});
 
 				container?.replaceChildren(button);
@@ -109,13 +112,13 @@ export default function GooglePayButton({ priceCents, currency, disabled, onToke
 			mounted?.remove();
 			container?.replaceChildren();
 		};
-	}, [priceCents, currency]);
+	}, [priceCents, currency, i18n.language]);
 
 	if (state === 'loading') {
 		return (
 			<Button variant="secondary" disabled className="w-full">
 				<div className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent" />
-				Loading Google Pay…
+				{t('subscription.googlePay.loading')}
 			</Button>
 		);
 	}
@@ -123,8 +126,8 @@ export default function GooglePayButton({ priceCents, currency, disabled, onToke
 	if (state === 'unavailable') {
 		return (
 			<div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted px-4 py-4">
-				<p className="text-sm text-foreground/60">Google Pay is not available for this device/browser right now.</p>
-				<p className="text-xs text-foreground/40">Payment is processed by the backend payment gateway. Please try again later, or use a device with Google Pay support.</p>
+				<p className="text-sm text-foreground/60">{t('subscription.googlePay.unavailable')}</p>
+				<p className="text-xs text-foreground/40">{t('subscription.googlePay.unavailableNote')}</p>
 			</div>
 		);
 	}
@@ -133,7 +136,7 @@ export default function GooglePayButton({ priceCents, currency, disabled, onToke
 		return (
 			<div className="flex items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3">
 				<AlertIcon size={18} className="shrink-0 text-rose-400" />
-				<p className="text-sm text-rose-300">Could not initialize Google Pay. Check the connection and reload the page.</p>
+				<p className="text-sm text-rose-300">{t('subscription.googlePay.initFailed')}</p>
 			</div>
 		);
 	}

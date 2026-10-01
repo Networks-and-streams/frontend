@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { i18n } from '@/shared/i18n';
 import { subscriptionApi } from '@/features/subscription/api/subscription.api';
 import type { Subscription } from '../types';
 
@@ -26,7 +27,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set) => ({
 			set({ subscription, loadState: 'ready' });
 		} catch (error) {
 			set({
-				error: error instanceof Error ? error.message : 'Failed to load subscription.',
+				error: error instanceof Error ? error.message : i18n.t('errors.failedToLoadSubscription'),
 				loadState: 'error',
 			});
 		}

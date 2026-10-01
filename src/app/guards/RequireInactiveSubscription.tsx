@@ -1,4 +1,5 @@
 import { Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import FullScreenLoader from '@/app/components/FullScreenLoader';
 import { useAccessState, type GuardProps } from './access';
 
@@ -7,10 +8,11 @@ import { useAccessState, type GuardProps } from './access';
  * Users with an ACTIVE subscription are sent straight to the app.
  */
 export default function RequireInactiveSubscription({ children }: GuardProps) {
+	const { t } = useTranslation();
 	const access = useAccessState();
 
 	if (!access.authReady) {
-		return <FullScreenLoader message="Loading…" />;
+		return <FullScreenLoader message={t('common.loading')} />;
 	}
 
 	if (!access.isAuthenticated) {
@@ -18,7 +20,7 @@ export default function RequireInactiveSubscription({ children }: GuardProps) {
 	}
 
 	if (!access.subscriptionReady) {
-		return <FullScreenLoader message="Checking your subscription…" />;
+		return <FullScreenLoader message={t('common.checkingSubscription')} />;
 	}
 
 	if (access.subscriptionActive) {

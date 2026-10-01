@@ -1,4 +1,5 @@
 import { useToastStore } from '@/shared/store/toastStore';
+import { useTranslation } from 'react-i18next';
 import { CheckCircleFilledIcon, XIcon } from '@/shared/icons';
 
 const toastStyles: Record<string, { icon: string; ring: string }> = {
@@ -10,6 +11,7 @@ const toastStyles: Record<string, { icon: string; ring: string }> = {
 const ToastViewport = () => {
 	const toasts = useToastStore((s) => s.toasts);
 	const dismiss = useToastStore((s) => s.dismiss);
+	const { t } = useTranslation();
 
 	if (toasts.length === 0) return null;
 
@@ -31,7 +33,7 @@ const ToastViewport = () => {
 						<button
 							onClick={() => dismiss(toast.id)}
 							className="rounded-lg p-1 text-foreground/30 transition-colors hover:text-foreground"
-							aria-label="Dismiss"
+							aria-label={t('common.dismiss')}
 						>
 							<XIcon size={14} />
 						</button>
