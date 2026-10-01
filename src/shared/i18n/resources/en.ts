@@ -8,6 +8,7 @@
  * - subscription — subscribe page + Google Pay
  * - graphPage  — the graph editor workspace (input, algorithm, results)
  * - savedGraphs — "My Graphs" panel and its toasts
+ * - about      — About / Help page (overview, usage guide, team, user agreement)
  * - languageSwitcher — locale picker labels
  *
  * Leaf values are typed as plain `string`s intentionally: `uk.ts` is enforced
@@ -18,6 +19,9 @@
 export const en = {
 	common: {
 		appName: 'Graph Resolver',
+		home: 'Home',
+		workspace: 'Workspace',
+		about: 'About',
 		loading: 'Loading…',
 		retry: 'Retry',
 		dismiss: 'Dismiss',
@@ -43,6 +47,14 @@ export const en = {
 		register: 'Register',
 		haveAccount: 'Already have an account?',
 		signIn: 'Sign in',
+		email: 'Email',
+		emailPlaceholder: 'you@example.com',
+		password: 'Password',
+		passwordPlaceholder: '••••••••',
+		orContinueWith: 'or continue with',
+		submitting: 'Please wait…',
+		invalidEmail: 'Enter a valid email address.',
+		passwordTooShort: 'Password must be at least 6 characters.',
 	},
 	languageSwitcher: {
 		label: 'Language',
@@ -169,6 +181,140 @@ export const en = {
 			couldNotOpen: 'Could not open graph',
 			deleted: 'Graph deleted',
 			couldNotDelete: 'Could not delete graph',
+		},
+	},
+	about: {
+		title: 'About & Help',
+		subtitle: 'What Graph Resolver does and how to solve a graph from start to finish.',
+		app: {
+			title: 'About the application',
+			description:
+				'Graph Resolver is a workspace for working with graphs. Create or open a graph, run a graph algorithm on it, and inspect the computed solution together with an interactive visualization.',
+			features: {
+				create: 'Create and enter graphs by specifying vertices and edges.',
+				save: 'Save graphs to your account and reuse them later.',
+				algorithms:
+					'Run graph algorithms — Minty for shortest paths and Ford–Fulkerson for maximum flow.',
+				results: 'The application calculates the solution and displays it on the graph.',
+			},
+		},
+		howTo: {
+			title: 'How to use',
+			lead: 'Solving a graph takes just a few steps.',
+			steps: {
+				create: {
+					title: 'Create a new graph or select a saved one',
+					description:
+						'Start a new graph or open one from "My Graphs". A saved graph is loaded into the editor with its vertices, edges and source vertex.',
+				},
+				define: {
+					title: 'Specify vertices and edges',
+					description:
+						'Set the number of vertices and add edges, providing a weight for each edge where the algorithm requires it.',
+				},
+				algorithm: {
+					title: 'Select the required algorithm',
+					description: 'Choose Minty (shortest paths) or Ford–Fulkerson (maximum flow) in the algorithm selector.',
+				},
+				source: {
+					title: 'Provide the source vertex and other parameters',
+					description:
+						'Set the source vertex (and any other required parameters) within the valid range before running the algorithm.',
+				},
+				run: {
+					title: 'Run the algorithm',
+					description: 'Press "Run algorithm". The input is validated and the selected algorithm is executed.',
+				},
+				review: {
+					title: 'Review the result and visualization',
+					description:
+						'Read the calculated distances and paths next to the graph and inspect the highlighted solution in the visualization.',
+				},
+			},
+			constraints: {
+				title: 'Input constraints & validation',
+				lead: 'The editor validates the graph before it can be saved or solved:',
+				vertices: 'The number of vertices must be at least 1.',
+				source: 'The source vertex must be between 1 and the number of vertices.',
+				edges: 'Every edge endpoint must be within 1..vertices.',
+				weights: 'Every edge has a numeric weight that is passed to the algorithm.',
+				saving:
+					'A graph can only be saved once it is valid, and you are warned about unsaved changes before leaving the page.',
+			},
+		},
+		developers: {
+			title: 'Developers',
+			description: 'The team that built Graph Resolver.',
+		},
+		supervisor: {
+			title: 'Scientific supervisor',
+			description: 'Academic supervisor of the project.',
+		},
+		agreement: {
+			title: 'User Agreement',
+			subtitle: 'Terms of use for the Graph Resolver educational project.',
+			download: 'Download agreement',
+		},
+	},
+	home: {
+		hero: {
+			badge: 'Welcome',
+			title: 'Welcome to Graph Resolver',
+			description: 'Create, visualize and solve graph problems.',
+			message:
+				'A workspace for building graphs, running the Minty shortest-path and Ford–Fulkerson max-flow algorithms, and reviewing the computed solution.',
+		},
+		previews: {
+			title: 'Explore the application',
+			editor: {
+				title: 'Graph editor',
+				description: 'Create and edit a graph: vertices, edges, weights and the source vertex.',
+				open: 'Open editor',
+			},
+			solver: {
+				title: 'Algorithms & solver',
+				description: 'Run Minty or Ford–Fulkerson and inspect the highlighted solution.',
+				open: 'Open solver',
+			},
+			saved: {
+				title: 'Saved graphs',
+				description: 'Open and reuse graphs saved to your account.',
+				open: 'Open saved graphs',
+				loading: 'Loading saved graphs…',
+				empty: 'No saved graphs yet',
+				emptyHint: 'Create a graph and save it to see it here.',
+			},
+			about: {
+				title: 'About',
+				description: 'Application information, developers, user guide and the user agreement.',
+				open: 'Open about',
+				items: {
+					info: 'About the application',
+					team: 'Developers & supervisor',
+					docs: 'Help & user agreement',
+				},
+			},
+		},
+		recent: {
+			title: 'Recent graphs',
+			viewAll: 'View all',
+			open: 'Open "{{name}}"',
+			updated: 'Updated {{date}}',
+			loading: 'Loading saved graphs…',
+			errorTitle: 'Could not load saved graphs',
+			emptyTitle: 'No saved graphs yet',
+			emptyDescription: 'Create your first graph and save it to reuse it later.',
+			createFirst: 'Create graph',
+		},
+		howItWorks: {
+			title: 'How it works',
+			stepLabel: 'Step {{number}}',
+			steps: {
+				create: 'Create graph',
+				configure: 'Configure algorithm',
+				run: 'Run',
+				view: 'View solution',
+			},
 		},
 	},
 };

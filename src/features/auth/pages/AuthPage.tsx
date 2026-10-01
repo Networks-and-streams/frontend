@@ -14,7 +14,7 @@ export default function AuthPage() {
 			</div>
 
 			<div className="rounded-3xl border border-border bg-card p-8 backdrop-blur-xl sm:p-10">
-				<AuthForm mode={isLogin ? 'login' : 'register'} />
+				<AuthForm key={isLogin ? 'login' : 'register'} mode={isLogin ? 'login' : 'register'} />
 			</div>
 
 			<p className="mt-6 text-center text-sm text-foreground/40">

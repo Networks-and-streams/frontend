@@ -19,6 +19,14 @@ interface GraphVisualizationProps {
 	/** Optional solver result used to highlight the computed shortest paths. */
 	result?: ComputeResult | null;
 	className?: string;
+	/**
+	 * When false, the canvas is rendered as a static, read-only preview: no
+	 * panning, zooming, box-selection or pointer events. Used by dashboard
+	 * previews so they can never interfere with application state.
+	 */
+	interactive?: boolean;
+	/** Height utility class for the container (defaults to the full editor size). */
+	heightClassName?: string;
 }
 
 /**
@@ -30,7 +38,13 @@ interface GraphVisualizationProps {
  * changed elements are touched, and nodes only relayout when the element set
  * changes), and destroyed on unmount.
  */
-function GraphVisualization({ graph, result = null, className = '' }: GraphVisualizationProps) {
+function GraphVisualization({
+	graph,
+	result = null,
+	className = '',
+	interactive = true,
+	heightClassName = 'h-[380px]',
+}: GraphVisualizationProps) {
 	const { t } = useTranslation();
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const cyRef = useRef<Core | null>(null);
@@ -50,9 +64,11 @@ function GraphVisualization({ graph, result = null, className = '' }: GraphVisua
 			minZoom: 0.25,
 			maxZoom: 4,
 			wheelSensitivity: 0.2,
-			boxSelectionEnabled: true,
+			boxSelectionEnabled: interactive,
 			selectionType: 'single',
-			autounselectify: false,
+			autounselectify: !interactive,
+			userZoomingEnabled: interactive,
+			userPanningEnabled: interactive,
 		});
 		cyRef.current = cy;
 		// Force a layout on the next element sync for this fresh instance.
@@ -67,7 +83,7 @@ function GraphVisualization({ graph, result = null, className = '' }: GraphVisua
 			cy.destroy();
 			cyRef.current = null;
 		};
-	}, []);
+	}, [interactive]);
 
 	// Sync elements: add/remove changed elements and update data in place.
 	// A layout runs only when the node/edge set changes (not for weight edits).
@@ -122,7 +138,7 @@ function GraphVisualization({ graph, result = null, className = '' }: GraphVisua
 			ref={containerRef}
 			role="img"
 			aria-label={ariaLabel}
-			className={`h-[380px] w-full ${className}`}
+			className={`${heightClassName} w-full ${interactive ? '' : 'pointer-events-none'} ${className}`}
 		/>
 	);
 }
