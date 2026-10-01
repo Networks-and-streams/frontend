@@ -12,12 +12,14 @@ import AuthPage from '@/features/auth/pages/AuthPage';
 import AuthCallbackPage from '@/features/auth/pages/AuthCallbackPage';
 import SubscribePage from '@/features/subscription/pages/SubscribePage';
 import GraphPage from '@/features/graph/pages/GraphPage';
+import AboutPage from '@/features/about/pages/AboutPage';
+import HomePage from '@/features/home/pages/HomePage';
 import { useAuthStore } from '@/features/auth/store/auth';
 import { useSubscriptionStore } from '@/features/subscription/store/subscriptionStore';
 import { useSavedGraphsStore } from '@/features/graph/store/savedGraphsStore';
 import PublicOnly from './guards/PublicOnly';
 import RequireInactiveSubscription from './guards/RequireInactiveSubscription';
-import RootRedirect from './guards/RootRedirect';
+import RequireSubscription from './guards/RequireSubscription';
 
 /**
  * State orchestration:
@@ -77,7 +79,16 @@ function RootLayout() {
 const router = createBrowserRouter(
 	createRoutesFromElements(
 		<Route element={<RootLayout />}>
-			<Route index element={<RootRedirect />} />
+			{/* Home / Welcome — the default entry point (authenticated + active
+			    subscription). Anonymous users go to /auth, inactive to /subscribe. */}
+			<Route
+				index
+				element={
+					<RequireSubscription>
+						<HomePage />
+					</RequireSubscription>
+				}
+			/>
 
 			<Route
 				path="/auth"
@@ -89,6 +100,9 @@ const router = createBrowserRouter(
 			/>
 			{/* OAuth callback — backend redirects here after Google sign-in. */}
 			<Route path="/auth/callback" element={<AuthCallbackPage />} />
+
+			{/* Public documentation page — reachable signed in or out. */}
+			<Route path="/about" element={<AboutPage />} />
 
 			{/* Authenticated, subscription required (premium not active). */}
 			<Route

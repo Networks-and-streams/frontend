@@ -53,8 +53,8 @@ export default function SubscribePage() {
 				// Re-fetch the authoritative subscription state before unlocking.
 				setPayPhase({ status: 'succeeded' });
 				await fetchSubscription();
-				// The RequireInactiveSubscription route guard redirects to /graph
-				// once the subscription reads back ACTIVE.
+				// The RequireInactiveSubscription route guard redirects to the
+				// home page once the subscription reads back ACTIVE.
 				return;
 			}
 
@@ -162,7 +162,7 @@ export default function SubscribePage() {
 	}, []);
 
 	const goToApp = useCallback(() => {
-		navigate('/graph', { replace: true });
+		navigate('/', { replace: true });
 	}, [navigate]);
 
 	const priceLabel = formatPrice(PREMIUM_PLAN_CONFIG.amountCents, PREMIUM_PLAN_CONFIG.currency);

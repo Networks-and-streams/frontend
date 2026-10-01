@@ -5,7 +5,7 @@ import { useAccessState, type GuardProps } from './access';
 
 /**
  * Authenticated route for users without an active subscription (`/subscribe`).
- * Users with an ACTIVE subscription are sent straight to the app.
+ * Users with an ACTIVE subscription are sent straight to the home page.
  */
 export default function RequireInactiveSubscription({ children }: GuardProps) {
 	const { t } = useTranslation();
@@ -24,7 +24,7 @@ export default function RequireInactiveSubscription({ children }: GuardProps) {
 	}
 
 	if (access.subscriptionActive) {
-		return <Navigate to="/graph" replace />;
+		return <Navigate to="/" replace />;
 	}
 
 	return children;

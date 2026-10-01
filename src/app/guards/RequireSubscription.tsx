@@ -4,10 +4,10 @@ import FullScreenLoader from '@/app/components/FullScreenLoader';
 import { useAccessState, type GuardProps } from './access';
 
 /**
- * Authenticated route for users with an active subscription (`/graph`).
- * While the subscription state is still being fetched the guard shows a
- * loader instead of redirecting prematurely — a page refresh while on `/graph`
- * must not flash through `/subscribe` on the way back.
+ * Authenticated route for users with an active subscription (the home page and,
+ * when enabled, `/graph`). While the subscription state is still being fetched
+ * the guard shows a loader instead of redirecting prematurely — a page refresh
+ * while on `/` must not flash through `/subscribe` on the way back.
  */
 export default function RequireSubscription({ children }: GuardProps) {
 	const { t } = useTranslation();

@@ -43,5 +43,5 @@ export interface GuardProps {
 
 export function guardTo(access: AccessState): string {
 	if (!access.isAuthenticated) return '/auth';
-	return access.subscriptionActive ? '/graph' : '/subscribe';
+	return access.subscriptionActive ? '/' : '/subscribe';
 }

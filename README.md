@@ -21,8 +21,8 @@ is connected).
 Open app
   ├─ not authenticated → /auth (register / login / Google OAuth)
   └─ authenticated
-       ├─ active subscription → /graph (the application)
-       └─ no active subscription → /subscribe (payment) → /graph
+       ├─ active subscription → / (home) → /graph (the workspace)
+       └─ no active subscription → /subscribe (payment) → /
 ```
 
 Access control is decided by the **backend** on every navigation:
@@ -32,7 +32,7 @@ Access control is decided by the **backend** on every navigation:
 | session unknown (restoring)               | full-screen loading state       |
 | no valid session                          | `/auth`                         |
 | session valid, subscription inactive      | `/subscribe`                    |
-| session valid, subscription ACTIVE        | `/graph`                        |
+| session valid, subscription ACTIVE        | `/` (home)                      |
 
 The guards map the combinations of
 `(auth ready, authenticated, subscription ready, subscription active)` to those
@@ -132,14 +132,16 @@ npm run preview  # preview the production build
 src/
 ├── app/                 # router (App.tsx), shell, route guards
 │   ├── components/      # AppShell (header), FullScreenLoader
-│   └── guards/          # access-map + PublicOnly / Require* / RootRedirect
+│   └── guards/          # access-map + PublicOnly / Require* guards
 ├── features/
 │   ├── auth/            # api, store, pages, AuthForm, DTO types
 │   ├── subscription/    # api, store, Google Pay, SubscribePage, DTO types
-│   └── graph/           # api boundary, canvas, input panel, GraphPage, types
+│   ├── graph/           # api boundary, canvas, input panel, GraphPage, types
+│   ├── home/            # Welcome / dashboard page (quick actions, recent graphs)
+│   └── about/           # public About / Help page + localized User Agreement
 ├── shared/
 │   ├── api/http.ts      # axios client + access-token + refresh handling
-│   ├── components/ui/   # Button, StateBlock, ToastViewport
+│   ├── components/ui/   # Button, StateBlock, SectionHeading, ToastViewport
 │   ├── icons/           # SVG icon set
 │   ├── store/toastStore.ts
 │   └── utils/           # formatting helpers
