@@ -16,9 +16,6 @@ export default function PublicOnly({ children }: GuardProps) {
 	}
 
 	if (access.isAuthenticated) {
-		if (!access.subscriptionReady) {
-			return <FullScreenLoader message={t('common.checkingAccount')} />;
-		}
 		return <Navigate to={guardTo(access)} replace />;
 	}
 

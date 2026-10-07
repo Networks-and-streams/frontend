@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Button from '@/shared/components/ui/Button/Button';
 import LanguageSwitcher from '@/shared/components/ui/LanguageSwitcher/LanguageSwitcher';
-import { GraphIcon, HomeIcon, InfoIcon, LogoutIcon } from '@/shared/icons';
+import { GraphIcon, HomeIcon, InfoIcon, LogoutIcon, SettingsIcon } from '@/shared/icons';
 import { useAuthStore } from '@/features/auth/store/auth';
 
 interface AppShellProps {
@@ -89,9 +89,15 @@ export default function AppShell({ children }: AppShellProps) {
 
 					<div className="flex items-center gap-3">
 						{user && (
-							<span className="hidden max-w-[200px] truncate text-sm text-foreground/50 sm:block" title={user.email}>
-								{user.email}
-							</span>
+							<NavLink
+								to="/profile"
+								className={navLinkClass}
+								title={t('common.profile')}
+								aria-label={`${t('common.profile')}: ${user.email}`}
+							>
+								<SettingsIcon size={16} />
+								<span className="hidden max-w-[200px] truncate sm:inline">{user.email}</span>
+							</NavLink>
 						)}
 						<LanguageSwitcher />
 						{isAuthenticated ? (

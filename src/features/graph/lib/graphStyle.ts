@@ -1,4 +1,4 @@
-import type { BaseLayoutOptions, StylesheetJson } from 'cytoscape';
+import type { BaseLayoutOptions, LayoutOptions, StylesheetJson } from 'cytoscape';
 
 /**
  * Cytoscape appearance + layout configuration.
@@ -79,6 +79,25 @@ export function createGraphLayout(): GraphLayoutOptions {
 	};
 }
 
+/**
+ * Layouts tried when arranging a graph, in order of preference: the drawing
+ * with the fewest edge crossings wins and ties keep the earlier one, so the
+ * hierarchical layout stays the default whenever it is as good as the others.
+ */
+export function createLayoutCandidates(): LayoutOptions[] {
+	const base = createGraphLayout();
+	const elk = (overrides: Record<string, string | number | boolean>) =>
+		({ ...base, fit: false, elk: { ...base.elk, ...overrides } }) as unknown as LayoutOptions;
+	return [
+		elk({}),
+		elk({ 'elk.direction': 'RIGHT' }),
+		elk({ algorithm: 'stress', 'elk.stress.desiredEdgeLength': 90 }),
+		elk({ algorithm: 'force', 'elk.force.iterations': 400 }),
+		{ name: 'cose', animate: false, fit: false, randomize: true, nodeDimensionsIncludeLabels: true } as LayoutOptions,
+		{ name: 'circle', animate: false, fit: false } as LayoutOptions,
+	];
+}
+
 /** Cytoscape stylesheet mirroring the previous SVG look (nodes, weights, source, highlights). */
 export function createGraphStylesheet(theme: GraphTheme): StylesheetJson {
 	return [
@@ -113,6 +132,66 @@ export function createGraphStylesheet(theme: GraphTheme): StylesheetJson {
 			style: {
 				'border-color': theme.accent,
 				'border-width': 3,
+			},
+		},
+		{
+			// Step playback: node label shows "vertex\ndistance".
+			selector: 'node.traced',
+			style: {
+				'text-wrap': 'wrap',
+				'line-height': 1.1,
+				'font-size': 11,
+				width: 42,
+				height: 42,
+			},
+		},
+		{
+			selector: 'node.step-frontier',
+			style: {
+				'border-color': theme.accent,
+				'border-style': 'dashed',
+				'border-width': 2,
+			},
+		},
+		{
+			selector: 'node.step-visited',
+			style: {
+				'background-color': theme.accent,
+				'background-opacity': 0.35,
+				'border-color': theme.accentDarker,
+				'border-style': 'solid',
+				'border-width': 2,
+			},
+		},
+		{
+			selector: 'node.step-improved',
+			style: {
+				'border-color': '#f59e0b',
+				'border-style': 'solid',
+				'border-width': 3,
+			},
+		},
+		{
+			selector: 'node.step-current',
+			style: {
+				'background-color': theme.accent,
+				'background-opacity': 1,
+				'border-color': theme.foreground,
+				'border-style': 'solid',
+				'border-width': 3,
+				color: '#000000',
+				'overlay-color': theme.accent,
+				'overlay-opacity': 0.25,
+				'overlay-padding': 6,
+			},
+		},
+		{
+			// Visual editor: the node an edge is being drawn from.
+			selector: 'node.connect-from',
+			style: {
+				'border-color': theme.accent,
+				'border-width': 3,
+				'border-style': 'dashed',
 			},
 		},
 		{
@@ -153,6 +232,14 @@ export function createGraphStylesheet(theme: GraphTheme): StylesheetJson {
 			style: {
 				'line-color': theme.accent,
 				'target-arrow-color': theme.accent,
+				width: 3,
+			},
+		},
+		{
+			selector: 'edge.step-relaxed',
+			style: {
+				'line-color': '#f59e0b',
+				'target-arrow-color': '#f59e0b',
 				width: 3,
 			},
 		},

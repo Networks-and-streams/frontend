@@ -31,27 +31,54 @@ export interface ComputeRequest {
 	graph: GraphInput;
 	options?: {
 		includeSteps?: boolean;
+		/** Minty: only find routes to this vertex (null/undefined = every vertex). */
+		target?: number | null;
 	};
 }
 
 /** Result payload returned by the compute endpoint (algorithm-specific). */
 export interface ComputeResult {
 	source?: number;
-	/** Shortest distance to each reachable vertex (key = vertex id). */
-	distances?: Record<string, number>;
-	/** Shortest route to each reachable vertex (key = vertex id). */
-	paths?: Record<string, number[]>;
+	/** Shortest distance to each vertex (key = vertex id); null when unreachable. */
+	distances?: Record<string, number | null>;
+	/**
+	 * Every shortest route to each vertex (key = vertex id): several when routes
+	 * tie, empty when the vertex is unreachable.
+	 */
+	paths?: Record<string, number[][]>;
+	/** True when more tied shortest routes exist than the compute service returned. */
+	truncated?: boolean;
 }
 
-/** Response shape for the future compute endpoint. */
+/** One Minty execution step: the vertex finalized and the distance table after it. */
+export interface MintyStep {
+	current: number | null;
+	visited: number[];
+	/** Key = vertex id; null = not reached yet. */
+	distances: Record<string, number | null>;
+}
+
+/** Daily run allowance returned by GET /graph/quota and with every compute response. */
+export interface ComputeQuota {
+	/** True with an active subscription: no daily limit. */
+	unlimited: boolean;
+	/** Free runs are locked until the email is verified. */
+	requiresVerification: boolean;
+	limit: number | null;
+	used: number;
+	remaining: number | null;
+	resetsAt: string | null;
+}
+
+/** Response of POST /graph/compute (`backend/src/graph/graph.controller.ts`). */
 export interface ComputeResponse {
-	status: 'ok' | 'error';
+	/** `ok` on success, otherwise the compute error kind (e.g. `InvalidGraph`). */
+	status: string;
 	result?: ComputeResult | null;
-	executionTrace?: unknown[];
-	error?: {
-		type: string;
-		message: string;
-	};
+	/** Execution steps (Minty); validate with `isTraceFor` before use. */
+	steps?: unknown;
+	error?: string;
+	quota: ComputeQuota;
 }
 
 /** Reference sample graph matching the compute spec example. */
@@ -96,10 +123,14 @@ export interface UpdateSavedGraphDto {
 	graph?: GraphInput;
 }
 
+/** Mirrors the backend's rules (`backend/src/saved-graphs/graph-data.validation.ts`). */
 export function isValidGraph(input: GraphInput): boolean {
-	if (input.vertices < 1) return false;
-	if (input.source < 1 || input.source > input.vertices) return false;
-	return input.edges.every((e) => e.from >= 1 && e.from <= input.vertices && e.to >= 1 && e.to <= input.vertices);
+	const inRange = (v: number) => Number.isInteger(v) && v >= 1 && v <= input.vertices;
+	if (!Number.isInteger(input.vertices) || input.vertices < 1) return false;
+	if (!inRange(input.source)) return false;
+	return input.edges.every(
+		(e) => inRange(e.from) && inRange(e.to) && Number.isInteger(e.weight) && e.weight >= 0,
+	);
 }
 
 export function parseGraph(json: string): GraphInput {

@@ -14,10 +14,13 @@ import SubscribePage from '@/features/subscription/pages/SubscribePage';
 import GraphPage from '@/features/graph/pages/GraphPage';
 import AboutPage from '@/features/about/pages/AboutPage';
 import HomePage from '@/features/home/pages/HomePage';
+import ProfilePage from '@/features/profile/pages/ProfilePage';
+import ConfirmEmailPage from '@/features/profile/pages/ConfirmEmailPage';
 import { useAuthStore } from '@/features/auth/store/auth';
 import { useSubscriptionStore } from '@/features/subscription/store/subscriptionStore';
 import { useSavedGraphsStore } from '@/features/graph/store/savedGraphsStore';
 import PublicOnly from './guards/PublicOnly';
+import RequireAuth from './guards/RequireAuth';
 import RequireInactiveSubscription from './guards/RequireInactiveSubscription';
 
 /**
@@ -78,16 +81,8 @@ function RootLayout() {
 const router = createBrowserRouter(
 	createRoutesFromElements(
 		<Route element={<RootLayout />}>
-			{/* Home / Welcome — the default entry point (authenticated + active
-			    subscription). Anonymous users go to /auth, inactive to /subscribe. */}
-			<Route
-				index
-				element={
-					// {/* <RequireSubscription> */}
-					<HomePage />
-					// </RequireSubscription>
-				}
-			/>
+			{/* Home / Welcome — public entry point for everyone. */}
+			<Route index element={<HomePage />} />
 
 			<Route
 				path="/auth"
@@ -113,15 +108,27 @@ const router = createBrowserRouter(
 				}
 			/>
 
-			{/* Authenticated + active subscription. */}
+			{/* Authenticated; free users get a daily run limit (enforced by the backend). */}
 			<Route
 				path="/graph"
 				element={
-					// {/* <RequireSubscription> */ }
-					< GraphPage />
-					// </RequireSubscription>
+					<RequireAuth>
+						<GraphPage />
+					</RequireAuth>
 				}
 			/>
+
+			<Route
+				path="/profile"
+				element={
+					<RequireAuth>
+						<ProfilePage />
+					</RequireAuth>
+				}
+			/>
+
+			{/* Link from a verification / email-change email; the token authorizes it. */}
+			<Route path="/confirm-email" element={<ConfirmEmailPage />} />
 
 			<Route path="*" element={<Navigate to="/" replace />} />
 		</Route>,
