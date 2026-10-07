@@ -11,7 +11,8 @@ export const graphApi = {
 			algorithm: data.algorithm,
 			graph: {
 				vertices: data.graph.vertices,
-				edges: data.graph.edges,
+				// Compute optimizes the weight; extra edge parameters stay in the browser.
+				edges: data.graph.edges.map(({ from, to, weight }) => ({ from, to, weight })),
 				source: data.graph.source,
 			},
 			include_steps: data.options?.includeSteps ?? true,

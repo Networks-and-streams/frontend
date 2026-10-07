@@ -1,4 +1,4 @@
-import type { GraphInput } from '../types';
+import type { GraphEdge, GraphInput } from '../types';
 
 /**
  * Pure, immutable edits on the graph domain model used by the visual editor.
@@ -45,6 +45,7 @@ export function removeEdge(graph: GraphInput, index: number): GraphInput {
 	return { ...graph, edges: graph.edges.filter((_, i) => i !== index) };
 }
 
-export function setEdgeWeight(graph: GraphInput, index: number, weight: number): GraphInput {
-	return { ...graph, edges: graph.edges.map((e, i) => (i === index ? { ...e, weight } : e)) };
+/** Replaces one edge (weight and parameter values edited together). */
+export function replaceEdge(graph: GraphInput, index: number, edge: GraphEdge): GraphInput {
+	return { ...graph, edges: graph.edges.map((e, i) => (i === index ? edge : e)) };
 }

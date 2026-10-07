@@ -19,15 +19,15 @@ import {
 	removeEdge,
 	removeVertex,
 	renumberAfterRemoval,
-	setEdgeWeight,
+	replaceEdge,
 	setSource,
 } from '../lib/graphEdits';
 import {
 	CanvasHint,
-	EdgeWeightEditor,
+	EdgeEditor,
 	GraphCanvasMenu,
 	MENU_WIDTH,
-	WEIGHT_EDITOR_WIDTH,
+	EDGE_EDITOR_WIDTH,
 	type CanvasMenuItem,
 	type CanvasPoint,
 } from './GraphCanvasMenu';
@@ -66,6 +66,15 @@ interface WeightEdit {
 	at: CanvasPoint;
 	index: number;
 }
+
+/** Background grid: cell size at zoom 1, and the smallest cell drawn. */
+const GRID_STEP = 24;
+const GRID_MIN_STEP = 12;
+const GRID_IMAGE =
+	'linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)';
+/** Zoom per wheel pixel: ~14% per mouse notch (100 px); pinch gestures report smaller deltas. */
+const WHEEL_ZOOM_SPEED = 0.0015;
+const PINCH_ZOOM_SPEED = 0.01;
 
 /** Above this, only the default layout runs (trying several would be slow). */
 const MAX_EDGES_FOR_LAYOUT_SEARCH = 400;
@@ -130,6 +139,7 @@ function GraphVisualization({
 	const [menu, setMenu] = useState<Menu | null>(null);
 	const [weightEdit, setWeightEdit] = useState<WeightEdit | null>(null);
 	const [connectFrom, setConnectFrom] = useState<number | null>(null);
+	const [showHelp, setShowHelp] = useState(false);
 
 	// Latest values for Cytoscape event handlers, which are bound only once.
 	const graphRef = useRef(graph);
@@ -246,7 +256,7 @@ function GraphVisualization({
 			// Ask for the weight right away, next to the target vertex.
 			setWeightEdit({
 				index: current.edges.length,
-				at: clampToCanvas(cy, cy.getElementById(graphNodeId(to)).renderedPosition(), WEIGHT_EDITOR_WIDTH),
+				at: clampToCanvas(cy, cy.getElementById(graphNodeId(to)).renderedPosition(), EDGE_EDITOR_WIDTH),
 			});
 		},
 		[commit],
@@ -262,7 +272,6 @@ function GraphVisualization({
 			style: createGraphStylesheet(readGraphTheme()),
 			minZoom: 0.25,
 			maxZoom: 4,
-			wheelSensitivity: 0.2,
 			boxSelectionEnabled: interactive,
 			selectionType: 'single',
 			autounselectify: !interactive,
@@ -310,12 +319,45 @@ function GraphVisualization({
 		// Dragging a vertex changes the crossing count.
 		if (interactive) cy.on('dragfree', 'node', () => recountCrossings());
 
+		// Background grid that pans and zooms with the graph.
+		const syncGrid = () => {
+			let step = GRID_STEP * cy.zoom();
+			while (step < GRID_MIN_STEP) step *= 2; // keep lines apart when zoomed out
+			const pan = cy.pan();
+			container.style.backgroundSize = `${step}px ${step}px`;
+			container.style.backgroundPosition = `${pan.x}px ${pan.y}px`;
+		};
+		if (interactive) {
+			container.style.backgroundImage = GRID_IMAGE;
+			syncGrid();
+			cy.on('viewport', syncGrid);
+		}
+
+		// Smooth zoom around the cursor, replacing Cytoscape's coarse wheel zoom:
+		// proportional to the scroll distance, so a mouse notch and a trackpad
+		// glide both feel natural; a trackpad pinch (ctrlKey) zooms faster.
+		const onWheel = (event: WheelEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+			let delta = event.deltaY;
+			if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) delta *= 16;
+			else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) delta *= container.clientHeight;
+			const factor = Math.exp(-delta * (event.ctrlKey ? PINCH_ZOOM_SPEED : WHEEL_ZOOM_SPEED));
+			const level = Math.min(cy.maxZoom(), Math.max(cy.minZoom(), cy.zoom() * factor));
+			const rect = container.getBoundingClientRect();
+			cy.zoom({ level, renderedPosition: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
+		};
+		// Capture phase: runs before (and stops) Cytoscape's own wheel handling.
+		if (interactive) container.addEventListener('wheel', onWheel, { passive: false, capture: true });
+
 		// Keep the canvas sized to its container (responsive).
 		const resizeObserver = new ResizeObserver(() => cy.resize());
 		resizeObserver.observe(container);
 
 		return () => {
 			resizeObserver.disconnect();
+			container.removeEventListener('wheel', onWheel, { capture: true });
+			container.style.backgroundImage = '';
 			cy.destroy();
 			cyRef.current = null;
 		};
@@ -493,7 +535,9 @@ function GraphVisualization({
 			ref={containerRef}
 			role="img"
 			aria-label={ariaLabel}
-			className={`${heightClassName} w-full ${interactive ? '' : 'pointer-events-none'} ${className}`}
+			className={`${heightClassName} w-full ${
+				interactive ? 'overflow-hidden rounded-2xl border border-border-subtle' : 'pointer-events-none'
+			} ${className}`}
 		/>
 	);
 
@@ -516,23 +560,46 @@ function GraphVisualization({
 					/>
 				)}
 				{weightEdit && editedEdge && (
-					<EdgeWeightEditor
+					<EdgeEditor
 						key={weightEdit.index}
 						at={weightEdit.at}
-						label={t('graphPage.canvas.menu.weightLabel', { from: editedEdge.from, to: editedEdge.to })}
+						title={t('graphPage.canvas.menu.edgeTitle', { from: editedEdge.from, to: editedEdge.to })}
+						weightLabel={t('graphPage.input.weight')}
+						edge={editedEdge}
+						metrics={graph.metrics ?? []}
 						submitLabel={t('graphPage.canvas.menu.apply')}
-						initial={editedEdge.weight}
-						onCommit={(weight) => commitOnCanvas(setEdgeWeight(graph, weightEdit.index, weight))}
+						onCommit={(edge) => commitOnCanvas(replaceEdge(graph, weightEdit.index, edge))}
 						onClose={closeWeightEdit}
 					/>
 				)}
 			</div>
 			<div className="flex flex-wrap items-start justify-between gap-2">
-				<CanvasHint>
-					{connectFrom !== null
-						? t('graphPage.canvas.connectHint', { vertex: connectFrom })
-						: t('graphPage.canvas.editHint')}
-				</CanvasHint>
+				{connectFrom === null && (graph.metrics?.length ?? 0) > 0 && (
+					<p className="w-full px-1 pt-1.5 text-[11px] text-foreground/40">
+						{t('graphPage.metrics.labelLegend', {
+							order: [t('graphPage.input.weight'), ...(graph.metrics ?? []).map((m) => m.name)].join(' · '),
+						})}
+					</p>
+				)}
+				{connectFrom !== null ? (
+					<CanvasHint>{t('graphPage.canvas.connectHint', { vertex: connectFrom })}</CanvasHint>
+				) : (
+					<div className="flex min-w-0 flex-1 items-start gap-1.5 pt-1.5">
+						<button
+							type="button"
+							onClick={() => setShowHelp(!showHelp)}
+							aria-expanded={showHelp}
+							aria-label={t('graphPage.canvas.help')}
+							title={t('graphPage.canvas.help')}
+							className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border text-[11px] font-semibold text-foreground/60 transition-colors hover:border-accent/40 hover:text-accent"
+						>
+							?
+						</button>
+						{showHelp && (
+							<p className="pt-0.5 text-[11px] leading-relaxed text-foreground/50">{t('graphPage.canvas.editHint')}</p>
+						)}
+					</div>
+				)}
 				<div className="flex shrink-0 items-center gap-2 pt-1.5">
 					{crossings !== null && !arranging && (
 						<span

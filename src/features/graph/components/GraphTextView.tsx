@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { resultEdgeIndices } from '../lib/graphElements';
+import { formatMetricValue } from '../lib/edgeMetrics';
 import type { StepFrame } from '../lib/stepTrace';
 import type { ComputeResult, GraphInput } from '../types';
 
@@ -91,6 +92,9 @@ export default function GraphTextView({ graph, result = null, frame = null, noti
 									</span>
 									<span>
 										{t('graphPage.input.weight')}: {edge.weight}
+										{(graph.metrics ?? []).map((m) =>
+											edge.values?.[m.key] !== undefined ? ` · ${m.name}: ${formatMetricValue(edge.values[m.key])}` : '',
+										)}
 										{onRoute.has(index) && ` · ${t('graphPage.text.onRoute')}`}
 									</span>
 								</li>

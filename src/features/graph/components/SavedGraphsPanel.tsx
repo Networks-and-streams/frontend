@@ -15,6 +15,8 @@ import type { SavedGraph } from '../types';
 interface SavedGraphsPanelProps {
 	/** Id of the graph currently open in the editor (highlighted in the list). */
 	openGraphId: string | null;
+	/** Called after a graph was opened in the editor (e.g. to close a menu). */
+	onOpened?: () => void;
 }
 
 function formatUpdatedAt(value: string): string {
@@ -33,7 +35,7 @@ function formatUpdatedAt(value: string): string {
  * "My Graphs" list. Reads the saved-graphs collection directly from Zustand
  * (loaded once per session), so opening a graph is an instant local selection.
  */
-export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps) {
+export default function SavedGraphsPanel({ openGraphId, onOpened }: SavedGraphsPanelProps) {
 	const { t } = useTranslation();
 	const graphs = useSavedGraphsStore((s) => s.graphs);
 	const isLoading = useSavedGraphsStore((s) => s.isLoading);
@@ -47,6 +49,7 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 		// Normal path: the graph is already in the store (instant, no request).
 		if (useSavedGraphsStore.getState().getGraph(graph.id)) {
 			useGraphEditorStore.getState().loadSaved(graph.id, graph.name, graph.graph);
+			onOpened?.();
 			return;
 		}
 
@@ -55,6 +58,7 @@ export default function SavedGraphsPanel({ openGraphId }: SavedGraphsPanelProps)
 			const fetched = await savedGraphsApi.getGraph(graph.id);
 			useSavedGraphsStore.getState().addGraph(fetched);
 			useGraphEditorStore.getState().loadSaved(fetched.id, fetched.name, fetched.graph);
+			onOpened?.();
 		} catch (openError) {
 			if (openError instanceof ApiError && openError.status === 404) {
 				useSavedGraphsStore.getState().removeGraph(graph.id);

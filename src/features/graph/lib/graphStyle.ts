@@ -116,6 +116,19 @@ export function createGraphStylesheet(theme: GraphTheme): StylesheetJson {
 				'font-weight': 600,
 				'text-valign': 'center',
 				'text-halign': 'center',
+				// Highlights around a vertex follow its round shape (Cytoscape defaults to a square).
+				'overlay-shape': 'ellipse',
+				'underlay-shape': 'ellipse',
+			},
+		},
+		{
+			// Pressing a vertex: a barely visible round shadow instead of the square overlay.
+			selector: 'node:active',
+			style: {
+				'overlay-opacity': 0,
+				'underlay-color': theme.foreground,
+				'underlay-opacity': 0.08,
+				'underlay-padding': 6,
 			},
 		},
 		{
@@ -180,9 +193,9 @@ export function createGraphStylesheet(theme: GraphTheme): StylesheetJson {
 				'border-style': 'solid',
 				'border-width': 3,
 				color: '#000000',
-				'overlay-color': theme.accent,
-				'overlay-opacity': 0.25,
-				'overlay-padding': 6,
+				'underlay-color': theme.accent,
+				'underlay-opacity': 0.25,
+				'underlay-padding': 7,
 			},
 		},
 		{
@@ -199,8 +212,9 @@ export function createGraphStylesheet(theme: GraphTheme): StylesheetJson {
 			style: {
 				'border-color': theme.accent,
 				'border-width': 4,
-				'overlay-color': theme.accent,
-				'overlay-opacity': 0.15,
+				'underlay-color': theme.accent,
+				'underlay-opacity': 0.12,
+				'underlay-padding': 6,
 			},
 		},
 		{

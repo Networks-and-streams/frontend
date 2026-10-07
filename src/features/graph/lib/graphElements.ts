@@ -1,5 +1,6 @@
 import type { ElementDefinition } from 'cytoscape';
-import type { ComputeResult, GraphInput } from '../types';
+import type { ComputeResult, GraphEdge, GraphInput } from '../types';
+import { formatMetricValue } from './edgeMetrics';
 
 /**
  * Domain → Cytoscape adapter.
@@ -9,6 +10,20 @@ import type { ComputeResult, GraphInput } from '../types';
  * or state is created here, and the domain types / Zustand stores remain free
  * of Cytoscape-specific types.
  */
+
+/**
+ * Edge label: the weight, then each extra parameter in the graph's order
+ * ("5 · 10 · 3"; "–" where an edge has no value for a parameter).
+ */
+export function edgeLabel(graph: GraphInput, edge: GraphEdge): string {
+	const metrics = graph.metrics ?? [];
+	if (metrics.length === 0) return String(edge.weight);
+	const values = metrics.map((m) => {
+		const value = edge.values?.[m.key];
+		return value === undefined ? '–' : formatMetricValue(value);
+	});
+	return [String(edge.weight), ...values].join(' · ');
+}
 
 /** Cytoscape node id for a 1-based graph vertex. */
 export function graphNodeId(vertex: number): string {
@@ -47,7 +62,7 @@ export function toCytoscapeElements(graph: GraphInput): ElementDefinition[] {
 				id: graphEdgeId(edge.from, edge.to, index),
 				source: graphNodeId(edge.from),
 				target: graphNodeId(edge.to),
-				label: String(edge.weight),
+				label: edgeLabel(graph, edge),
 				index,
 			},
 		});

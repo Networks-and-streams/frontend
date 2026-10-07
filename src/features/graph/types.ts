@@ -10,13 +10,33 @@
 export interface GraphEdge {
 	from: number;
 	to: number;
+	/** What the algorithm optimizes (Minty: length). */
 	weight: number;
+	/** Optional extra parameters, by {@link EdgeMetric.key}; a missing key = no data. */
+	values?: Record<string, number>;
+}
+
+/** How a parameter combines along a route. */
+export type MetricAggregate = 'sum' | 'min' | 'max';
+
+/**
+ * An extra edge parameter defined for the whole graph (throughput, time,
+ * cost…). It does not change what the algorithm computes; it is summarised
+ * for every route found (e.g. the bottleneck throughput of a path).
+ */
+export interface EdgeMetric {
+	/** Stable id used in `GraphEdge.values` (renaming keeps the data). */
+	key: string;
+	name: string;
+	aggregate: MetricAggregate;
 }
 
 export interface GraphInput {
 	vertices: number;
 	edges: GraphEdge[];
 	source: number;
+	/** Extra edge parameters; absent or empty = none. */
+	metrics?: EdgeMetric[];
 }
 
 export const GRAPH_ALGORITHM = {
@@ -124,12 +144,46 @@ export interface UpdateSavedGraphDto {
 }
 
 /** Mirrors the backend's rules (`backend/src/saved-graphs/graph-data.validation.ts`). */
+/** Limits mirrored from the backend (`graph-data.validation.ts`). */
+export const MAX_METRICS = 8;
+export const MAX_METRIC_NAME = 40;
+export const METRIC_KEY_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
+export const MAX_METRIC_VALUE = 1e12;
+export const METRIC_AGGREGATES: readonly MetricAggregate[] = ['sum', 'min', 'max'];
+
+function areValidMetrics(metrics: EdgeMetric[] | undefined): metrics is EdgeMetric[] | undefined {
+	if (metrics === undefined) return true;
+	if (!Array.isArray(metrics) || metrics.length > MAX_METRICS) return false;
+	const keys = new Set(metrics.map((m) => m.key));
+	return (
+		keys.size === metrics.length &&
+		metrics.every(
+			(m) =>
+				METRIC_KEY_PATTERN.test(m.key) &&
+				typeof m.name === 'string' &&
+				m.name.trim().length > 0 &&
+				m.name.length <= MAX_METRIC_NAME &&
+				METRIC_AGGREGATES.includes(m.aggregate),
+		)
+	);
+}
+
+/** Mirrors the backend's rules (`backend/src/saved-graphs/graph-data.validation.ts`). */
 export function isValidGraph(input: GraphInput): boolean {
 	const inRange = (v: number) => Number.isInteger(v) && v >= 1 && v <= input.vertices;
 	if (!Number.isInteger(input.vertices) || input.vertices < 1) return false;
 	if (!inRange(input.source)) return false;
+	if (!areValidMetrics(input.metrics)) return false;
+	const keys = new Set((input.metrics ?? []).map((m) => m.key));
 	return input.edges.every(
-		(e) => inRange(e.from) && inRange(e.to) && Number.isInteger(e.weight) && e.weight >= 0,
+		(e) =>
+			inRange(e.from) &&
+			inRange(e.to) &&
+			Number.isInteger(e.weight) &&
+			e.weight >= 0 &&
+			Object.entries(e.values ?? {}).every(
+				([key, value]) => keys.has(key) && Number.isFinite(value) && Math.abs(value) <= MAX_METRIC_VALUE,
+			),
 	);
 }
 
@@ -146,5 +200,10 @@ export function parseGraph(json: string): GraphInput {
 	) {
 		throw new Error('Graph must contain "vertices", "edges" and "source".');
 	}
-	return { vertices: obj.vertices, edges: obj.edges as GraphEdge[], source: obj.source };
+	return {
+		vertices: obj.vertices,
+		edges: obj.edges as GraphEdge[],
+		source: obj.source,
+		...(Array.isArray(obj.metrics) && { metrics: obj.metrics as EdgeMetric[] }),
+	};
 }

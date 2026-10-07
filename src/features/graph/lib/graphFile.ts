@@ -5,8 +5,8 @@ import { isValidGraph, parseGraph, type GraphEdge, type GraphInput } from '../ty
  * Graph files: import from and export to the user's disk.
  *
  * Two import formats are accepted:
- * - JSON — the app's own format `{ "vertices", "source", "edges": [{ "from", "to", "weight" }] }`
- *   (what {@link downloadGraph} writes).
+ * - JSON — the app's own format `{ "vertices", "source", "edges": [{ "from", "to", "weight" }] }`,
+ *   optionally with extra edge parameters (`metrics` + per-edge `values`); what {@link downloadGraph} writes.
  * - Edge list (.txt / .csv) — one edge per line, `from to [weight]` separated by
  *   spaces, tabs, commas or semicolons; weight defaults to 1. Optional lines
  *   `vertices N` and `source N`; `#` starts a comment. Without `vertices`, the
@@ -38,7 +38,15 @@ function parseJson(text: string): GraphInput {
 			vertices: graph.vertices,
 			source: graph.source,
 			// Copy only known fields so stray keys never reach the backend.
-			edges: graph.edges.map((e) => ({ from: e.from, to: e.to, weight: e.weight })),
+			edges: graph.edges.map((e) => ({
+				from: e.from,
+				to: e.to,
+				weight: e.weight,
+				...(e.values && typeof e.values === 'object' && { values: { ...e.values } }),
+			})),
+			...(graph.metrics && {
+				metrics: graph.metrics.map((m) => ({ key: m.key, name: m.name, aggregate: m.aggregate })),
+			}),
 		};
 	} catch {
 		throw new Error(i18n.t('graphPage.file.errors.json'));
@@ -82,7 +90,16 @@ function lineError(line: number): Error {
 
 /** Downloads a graph as a JSON file that {@link readGraphFile} can import again. */
 export function downloadGraph(name: string, graph: GraphInput): void {
-	const json = JSON.stringify({ vertices: graph.vertices, source: graph.source, edges: graph.edges }, null, 2);
+	const json = JSON.stringify(
+		{
+			vertices: graph.vertices,
+			source: graph.source,
+			...(graph.metrics?.length && { metrics: graph.metrics }),
+			edges: graph.edges,
+		},
+		null,
+		2,
+	);
 	const blob = new Blob([json, '\n'], { type: 'application/json' });
 	const url = URL.createObjectURL(blob);
 

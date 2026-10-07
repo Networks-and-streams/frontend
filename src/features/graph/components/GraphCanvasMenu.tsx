@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { EdgeMetric, GraphEdge } from '../types';
 
 export interface CanvasPoint {
 	x: number;
@@ -13,7 +14,7 @@ export interface CanvasMenuItem<Id extends string = string> {
 }
 
 export const MENU_WIDTH = 190;
-export const WEIGHT_EDITOR_WIDTH = 150;
+export const EDGE_EDITOR_WIDTH = 220;
 
 /** Closes on Escape or on a pointer press outside the panel. */
 function useDismiss(ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
@@ -31,8 +32,9 @@ function useDismiss(ref: React.RefObject<HTMLElement | null>, onClose: () => voi
 	}, [ref, onClose]);
 }
 
+// Opaque surface: the panel floats over the canvas, a translucent card would be unreadable.
 const panelClass =
-	'absolute z-20 rounded-xl border border-border bg-card p-1 shadow-xl shadow-black/20 backdrop-blur-xl';
+	'absolute z-20 rounded-xl border border-border-strong bg-surface p-1 text-foreground shadow-2xl shadow-black/40';
 
 /** Context menu of the visual graph editor. */
 export function GraphCanvasMenu<Id extends string>({
@@ -83,54 +85,94 @@ export function GraphCanvasMenu<Id extends string>({
 	);
 }
 
-/** Inline editor for an edge weight (non-negative integer). */
-export function EdgeWeightEditor({
+/**
+ * Inline editor for an edge: its weight (non-negative integer) and the
+ * graph's extra parameters (any number; empty = no data).
+ */
+export function EdgeEditor({
 	at,
-	label,
+	title,
 	submitLabel,
-	initial,
+	weightLabel,
+	edge,
+	metrics,
 	onCommit,
 	onClose,
 }: {
 	at: CanvasPoint;
-	label: string;
+	title: string;
 	submitLabel: string;
-	initial: number;
-	onCommit: (weight: number) => void;
+	weightLabel: string;
+	edge: GraphEdge;
+	metrics: EdgeMetric[];
+	onCommit: (edge: GraphEdge) => void;
 	onClose: () => void;
 }) {
 	const ref = useRef<HTMLFormElement | null>(null);
-	const [value, setValue] = useState(String(initial));
-	const weight = Number(value);
-	const valid = value.trim() !== '' && Number.isInteger(weight) && weight >= 0;
+	const [weightText, setWeightText] = useState(String(edge.weight));
+	const [valueTexts, setValueTexts] = useState<Record<string, string>>(() =>
+		Object.fromEntries(metrics.map((m) => [m.key, edge.values?.[m.key] !== undefined ? String(edge.values[m.key]) : ''])),
+	);
 	useDismiss(ref, onClose);
+
+	const weight = Number(weightText);
+	const weightValid = weightText.trim() !== '' && Number.isInteger(weight) && weight >= 0;
+	const valuesValid = metrics.every((m) => {
+		const text = valueTexts[m.key]?.trim() ?? '';
+		return text === '' || Number.isFinite(Number(text));
+	});
+	const valid = weightValid && valuesValid;
+
+	const fieldClass =
+		'h-8 w-full rounded-lg border border-border bg-muted px-2 text-center font-mono text-sm text-foreground focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20';
 
 	return (
 		<form
 			ref={ref}
-			className={`${panelClass} flex items-center gap-1.5 p-2`}
-			style={{ left: at.x, top: at.y, width: WEIGHT_EDITOR_WIDTH }}
+			aria-label={title}
+			className={`${panelClass} flex flex-col gap-2 p-2.5`}
+			style={{ left: at.x, top: at.y, width: EDGE_EDITOR_WIDTH }}
 			onSubmit={(e) => {
 				e.preventDefault();
 				if (!valid) return;
-				onCommit(weight);
+				const values: Record<string, number> = {};
+				for (const m of metrics) {
+					const text = valueTexts[m.key]?.trim() ?? '';
+					if (text !== '') values[m.key] = Number(text);
+				}
+				onCommit({ from: edge.from, to: edge.to, weight, ...(Object.keys(values).length > 0 && { values }) });
 				onClose();
 			}}
 		>
-			<label className="sr-only" htmlFor="edge-weight-input">
-				{label}
+			<p className="px-0.5 text-[11px] uppercase tracking-[0.15em] text-foreground/40">{title}</p>
+			<label className="grid grid-cols-[1fr_5.5rem] items-center gap-2 text-xs text-foreground/70">
+				{weightLabel}
+				<input
+					type="number"
+					min={0}
+					step={1}
+					autoFocus
+					value={weightText}
+					onChange={(e) => setWeightText(e.target.value)}
+					aria-invalid={!weightValid}
+					className={fieldClass}
+				/>
 			</label>
-			<input
-				id="edge-weight-input"
-				type="number"
-				min={0}
-				step={1}
-				autoFocus
-				value={value}
-				onChange={(e) => setValue(e.target.value)}
-				aria-invalid={!valid}
-				className="h-8 w-20 rounded-lg border border-border bg-muted px-2 text-center font-mono text-sm text-foreground focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
-			/>
+			{metrics.map((m) => (
+				<label key={m.key} className="grid grid-cols-[1fr_5.5rem] items-center gap-2 text-xs text-foreground/70">
+					<span className="truncate" title={m.name}>
+						{m.name}
+					</span>
+					<input
+						type="number"
+						step="any"
+						placeholder="—"
+						value={valueTexts[m.key] ?? ''}
+						onChange={(e) => setValueTexts((texts) => ({ ...texts, [m.key]: e.target.value }))}
+						className={fieldClass}
+					/>
+				</label>
+			))}
 			<button
 				type="submit"
 				disabled={!valid}
