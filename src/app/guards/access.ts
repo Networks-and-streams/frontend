@@ -42,6 +42,7 @@ export interface GuardProps {
 }
 
 export function guardTo(access: AccessState): string {
-	if (!access.isAuthenticated) return '/auth';
-	return access.subscriptionActive ? '/' : '/subscribe';
+	// Free accounts are usable (within the daily limit), so every signed-in
+	// user lands on the home page; upgrading is offered, never forced.
+	return access.isAuthenticated ? '/' : '/auth';
 }

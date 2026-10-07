@@ -1,5 +1,6 @@
 import type { ElementDefinition } from 'cytoscape';
-import type { ComputeResult, GraphInput } from '../types';
+import type { ComputeResult, GraphEdge, GraphInput } from '../types';
+import { formatMetricValue } from './edgeMetrics';
 
 /**
  * Domain → Cytoscape adapter.
@@ -9,6 +10,20 @@ import type { ComputeResult, GraphInput } from '../types';
  * or state is created here, and the domain types / Zustand stores remain free
  * of Cytoscape-specific types.
  */
+
+/**
+ * Edge label: the weight, then each extra parameter in the graph's order
+ * ("5 · 10 · 3"; "–" where an edge has no value for a parameter).
+ */
+export function edgeLabel(graph: GraphInput, edge: GraphEdge): string {
+	const metrics = graph.metrics ?? [];
+	if (metrics.length === 0) return String(edge.weight);
+	const values = metrics.map((m) => {
+		const value = edge.values?.[m.key];
+		return value === undefined ? '–' : formatMetricValue(value);
+	});
+	return [String(edge.weight), ...values].join(' · ');
+}
 
 /** Cytoscape node id for a 1-based graph vertex. */
 export function graphNodeId(vertex: number): string {
@@ -32,7 +47,7 @@ export function toCytoscapeElements(graph: GraphInput): ElementDefinition[] {
 	const nodes: ElementDefinition[] = [];
 	for (let vertex = 1; vertex <= graph.vertices; vertex += 1) {
 		nodes.push({
-			data: { id: graphNodeId(vertex), label: String(vertex) },
+			data: { id: graphNodeId(vertex), label: String(vertex), vertex },
 			classes: vertex === graph.source ? 'source' : undefined,
 		});
 	}
@@ -47,7 +62,8 @@ export function toCytoscapeElements(graph: GraphInput): ElementDefinition[] {
 				id: graphEdgeId(edge.from, edge.to, index),
 				source: graphNodeId(edge.from),
 				target: graphNodeId(edge.to),
-				label: String(edge.weight),
+				label: edgeLabel(graph, edge),
+				index,
 			},
 		});
 	});
@@ -61,42 +77,71 @@ export interface ResultHighlight {
 }
 
 /**
- * Derives the element ids that participate in the computed shortest paths
- * (e.g. the Minty result: a route to each reachable vertex) so the
- * visualization can highlight them.
+ * Indices of the graph edges that make up the computed shortest paths (e.g. the
+ * Minty result: a route to each reachable vertex). When parallel edges join the
+ * same pair, the lightest one is the edge the route actually uses.
  */
-export function collectResultHighlight(
-	graph: GraphInput,
-	result: ComputeResult | null | undefined,
-): ResultHighlight {
+export function resultEdgeIndices(graph: GraphInput, result: ComputeResult | null | undefined): Set<number> {
+	const indices = new Set<number>();
 	const paths = result?.paths;
-	if (!paths) return { nodeIds: [], edgeIds: [] };
+	if (!paths) return indices;
 
-	// Index real edges by "from->to" so a path step maps back to edge id(s).
-	const edgesByPair = new Map<string, string[]>();
+	const lightestByPair = new Map<string, number>();
 	graph.edges.forEach((edge, index) => {
 		if (!isVertexInRange(edge.from, graph.vertices) || !isVertexInRange(edge.to, graph.vertices)) {
 			return;
 		}
 		const key = `${edge.from}->${edge.to}`;
-		const id = graphEdgeId(edge.from, edge.to, index);
-		const existing = edgesByPair.get(key);
-		if (existing) existing.push(id);
-		else edgesByPair.set(key, [id]);
+		const current = lightestByPair.get(key);
+		if (current === undefined || edge.weight < graph.edges[current].weight) lightestByPair.set(key, index);
 	});
 
-	const nodeIds = new Set<string>();
-	const edgeIds = new Set<string>();
-
-	for (const path of Object.values(paths)) {
-		path.forEach((vertex) => nodeIds.add(graphNodeId(vertex)));
+	for (const path of Object.values(paths).flat()) {
 		for (let step = 0; step + 1 < path.length; step += 1) {
-			const ids = edgesByPair.get(`${path[step]}->${path[step + 1]}`);
-			ids?.forEach((id) => edgeIds.add(id));
+			const index = lightestByPair.get(`${path[step]}->${path[step + 1]}`);
+			if (index !== undefined) indices.add(index);
 		}
 	}
+	return indices;
+}
 
-	return { nodeIds: [...nodeIds], edgeIds: [...edgeIds] };
+/** Element ids to highlight for a computed result. */
+export function collectResultHighlight(
+	graph: GraphInput,
+	result: ComputeResult | null | undefined,
+): ResultHighlight {
+	const nodeIds = new Set<string>();
+	for (const path of Object.values(result?.paths ?? {}).flat()) {
+		path.forEach((vertex) => nodeIds.add(graphNodeId(vertex)));
+	}
+	const edgeIds = [...resultEdgeIndices(graph, result)].map((index) => {
+		const edge = graph.edges[index];
+		return graphEdgeId(edge.from, edge.to, index);
+	});
+	return { nodeIds: [...nodeIds], edgeIds };
+}
+
+/**
+ * The result as a standalone graph: same vertices and source, keeping only the
+ * edges on the computed paths. It can be edited, saved and solved like any graph.
+ */
+export function resultGraph(graph: GraphInput, result: ComputeResult | null | undefined): GraphInput {
+	const indices = resultEdgeIndices(graph, result);
+	return { ...graph, edges: graph.edges.filter((_, index) => indices.has(index)) };
+}
+
+/**
+ * Narrows a result to the routes to one `target` vertex (null keeps all), so the
+ * highlight, the result list and the result graph all show the same routes.
+ */
+export function resultForTarget(result: ComputeResult, target: number | null): ComputeResult {
+	if (target === null) return result;
+	const key = String(target);
+	return {
+		...result,
+		paths: { [key]: result.paths?.[key] ?? [] },
+		distances: { [key]: result.distances?.[key] ?? null },
+	};
 }
 
 /**

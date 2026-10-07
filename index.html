@@ -6,10 +6,48 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Graph Resolver</title>
+  <style>
+    /*
+     * Fallback shown when the app cannot start (JavaScript off, or a browser
+     * too old for it). React replaces #root's content when it mounts; the
+     * delay keeps the message from flashing while the app is still loading.
+     */
+    .app-fallback {
+      max-width: 34rem;
+      margin: 15vh auto;
+      padding: 0 1rem;
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #e4e4e7;
+      opacity: 0;
+      animation: app-fallback-show 0s 5s forwards;
+    }
+    .app-fallback.now { opacity: 1; animation: none; }
+    .app-fallback h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+    .app-fallback p { margin: .5rem 0; color: #a1a1aa; }
+    @keyframes app-fallback-show { to { opacity: 1; } }
+    html.dark body { background: #09090b; }
+  </style>
 </head>
 
 <body>
-  <div id="root"></div>
+  <noscript>
+    <div class="app-fallback now">
+      <h1>Graph Resolver needs JavaScript</h1>
+      <p>Turn on JavaScript in your browser settings and reload the page.</p>
+      <p lang="uk">Graph Resolver потребує JavaScript. Увімкніть його в налаштуваннях браузера й оновіть сторінку.</p>
+    </div>
+  </noscript>
+  <div id="root">
+    <div class="app-fallback" id="app-fallback" role="alert">
+      <h1>Graph Resolver could not start</h1>
+      <p>Your browser may be too old. Please open the site in a current version of Chrome, Firefox, Safari or Edge.</p>
+      <p lang="uk">Ймовірно, ваш браузер застарий. Відкрийте сайт в актуальній версії Chrome, Firefox, Safari або Edge.</p>
+    </div>
+  </div>
+  <!-- Browsers without ES module support never run the app: show the message at once. -->
+  <script nomodule>
+    document.getElementById('app-fallback').className = 'app-fallback now';
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

@@ -10,13 +10,33 @@
 export interface GraphEdge {
 	from: number;
 	to: number;
+	/** What the algorithm optimizes (Minty: length). */
 	weight: number;
+	/** Optional extra parameters, by {@link EdgeMetric.key}; a missing key = no data. */
+	values?: Record<string, number>;
+}
+
+/** How a parameter combines along a route. */
+export type MetricAggregate = 'sum' | 'min' | 'max';
+
+/**
+ * An extra edge parameter defined for the whole graph (throughput, time,
+ * cost…). It does not change what the algorithm computes; it is summarised
+ * for every route found (e.g. the bottleneck throughput of a path).
+ */
+export interface EdgeMetric {
+	/** Stable id used in `GraphEdge.values` (renaming keeps the data). */
+	key: string;
+	name: string;
+	aggregate: MetricAggregate;
 }
 
 export interface GraphInput {
 	vertices: number;
 	edges: GraphEdge[];
 	source: number;
+	/** Extra edge parameters; absent or empty = none. */
+	metrics?: EdgeMetric[];
 }
 
 export const GRAPH_ALGORITHM = {
@@ -31,27 +51,54 @@ export interface ComputeRequest {
 	graph: GraphInput;
 	options?: {
 		includeSteps?: boolean;
+		/** Minty: only find routes to this vertex (null/undefined = every vertex). */
+		target?: number | null;
 	};
 }
 
 /** Result payload returned by the compute endpoint (algorithm-specific). */
 export interface ComputeResult {
 	source?: number;
-	/** Shortest distance to each reachable vertex (key = vertex id). */
-	distances?: Record<string, number>;
-	/** Shortest route to each reachable vertex (key = vertex id). */
-	paths?: Record<string, number[]>;
+	/** Shortest distance to each vertex (key = vertex id); null when unreachable. */
+	distances?: Record<string, number | null>;
+	/**
+	 * Every shortest route to each vertex (key = vertex id): several when routes
+	 * tie, empty when the vertex is unreachable.
+	 */
+	paths?: Record<string, number[][]>;
+	/** True when more tied shortest routes exist than the compute service returned. */
+	truncated?: boolean;
 }
 
-/** Response shape for the future compute endpoint. */
+/** One Minty execution step: the vertex finalized and the distance table after it. */
+export interface MintyStep {
+	current: number | null;
+	visited: number[];
+	/** Key = vertex id; null = not reached yet. */
+	distances: Record<string, number | null>;
+}
+
+/** Daily run allowance returned by GET /graph/quota and with every compute response. */
+export interface ComputeQuota {
+	/** True with an active subscription: no daily limit. */
+	unlimited: boolean;
+	/** Free runs are locked until the email is verified. */
+	requiresVerification: boolean;
+	limit: number | null;
+	used: number;
+	remaining: number | null;
+	resetsAt: string | null;
+}
+
+/** Response of POST /graph/compute (`backend/src/graph/graph.controller.ts`). */
 export interface ComputeResponse {
-	status: 'ok' | 'error';
+	/** `ok` on success, otherwise the compute error kind (e.g. `InvalidGraph`). */
+	status: string;
 	result?: ComputeResult | null;
-	executionTrace?: unknown[];
-	error?: {
-		type: string;
-		message: string;
-	};
+	/** Execution steps (Minty); validate with `isTraceFor` before use. */
+	steps?: unknown;
+	error?: string;
+	quota: ComputeQuota;
 }
 
 /** Reference sample graph matching the compute spec example. */
@@ -96,10 +143,48 @@ export interface UpdateSavedGraphDto {
 	graph?: GraphInput;
 }
 
+/** Mirrors the backend's rules (`backend/src/saved-graphs/graph-data.validation.ts`). */
+/** Limits mirrored from the backend (`graph-data.validation.ts`). */
+export const MAX_METRICS = 8;
+export const MAX_METRIC_NAME = 40;
+export const METRIC_KEY_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
+export const MAX_METRIC_VALUE = 1e12;
+export const METRIC_AGGREGATES: readonly MetricAggregate[] = ['sum', 'min', 'max'];
+
+function areValidMetrics(metrics: EdgeMetric[] | undefined): metrics is EdgeMetric[] | undefined {
+	if (metrics === undefined) return true;
+	if (!Array.isArray(metrics) || metrics.length > MAX_METRICS) return false;
+	const keys = new Set(metrics.map((m) => m.key));
+	return (
+		keys.size === metrics.length &&
+		metrics.every(
+			(m) =>
+				METRIC_KEY_PATTERN.test(m.key) &&
+				typeof m.name === 'string' &&
+				m.name.trim().length > 0 &&
+				m.name.length <= MAX_METRIC_NAME &&
+				METRIC_AGGREGATES.includes(m.aggregate),
+		)
+	);
+}
+
+/** Mirrors the backend's rules (`backend/src/saved-graphs/graph-data.validation.ts`). */
 export function isValidGraph(input: GraphInput): boolean {
-	if (input.vertices < 1) return false;
-	if (input.source < 1 || input.source > input.vertices) return false;
-	return input.edges.every((e) => e.from >= 1 && e.from <= input.vertices && e.to >= 1 && e.to <= input.vertices);
+	const inRange = (v: number) => Number.isInteger(v) && v >= 1 && v <= input.vertices;
+	if (!Number.isInteger(input.vertices) || input.vertices < 1) return false;
+	if (!inRange(input.source)) return false;
+	if (!areValidMetrics(input.metrics)) return false;
+	const keys = new Set((input.metrics ?? []).map((m) => m.key));
+	return input.edges.every(
+		(e) =>
+			inRange(e.from) &&
+			inRange(e.to) &&
+			Number.isInteger(e.weight) &&
+			e.weight >= 0 &&
+			Object.entries(e.values ?? {}).every(
+				([key, value]) => keys.has(key) && Number.isFinite(value) && Math.abs(value) <= MAX_METRIC_VALUE,
+			),
+	);
 }
 
 export function parseGraph(json: string): GraphInput {
@@ -115,5 +200,10 @@ export function parseGraph(json: string): GraphInput {
 	) {
 		throw new Error('Graph must contain "vertices", "edges" and "source".');
 	}
-	return { vertices: obj.vertices, edges: obj.edges as GraphEdge[], source: obj.source };
+	return {
+		vertices: obj.vertices,
+		edges: obj.edges as GraphEdge[],
+		source: obj.source,
+		...(Array.isArray(obj.metrics) && { metrics: obj.metrics as EdgeMetric[] }),
+	};
 }

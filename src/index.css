@@ -72,6 +72,8 @@
 }
 
 :root {
+	/* Native controls (scrollbars, <select> lists, pickers) follow the theme. */
+	color-scheme: light;
 	--accent: #34d399;
 	--accent-darker: #10b981;
 
@@ -90,6 +92,7 @@
 }
 
 .dark {
+	color-scheme: dark;
 	--bg: #09090b;
 	--surface: #18181b;
 	--fg: #ffffff;
@@ -112,6 +115,22 @@
 
 	*:focus-visible {
 		@apply outline-2 outline-offset-2 outline-accent;
+	}
+
+	/* Thin scrollbars in the theme's border colour (Firefox + Chromium 121+). */
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--border-strong) transparent;
+	}
+
+	/*
+	 * Dropdown lists of <select>: some browsers ignore color-scheme here and
+	 * draw a white list under the light theme text, so set both explicitly.
+	 */
+	select option,
+	select optgroup {
+		background-color: var(--surface);
+		color: var(--fg);
 	}
 
 	::selection {

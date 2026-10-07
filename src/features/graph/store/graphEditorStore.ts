@@ -20,6 +20,8 @@ interface GraphEditorState {
 
 	/** Resets the editor to a blank new graph. */
 	startNew: (name?: string) => void;
+	/** Opens a graph as a new, unsaved graph (file import, solver result). */
+	openUnsaved: (name: string, graph: GraphInput) => void;
 	/** Loads a saved graph into the editor. */
 	loadSaved: (id: string, name: string, graph: GraphInput) => void;
 	/** Applies a local graph edit (marks the editor dirty). */
@@ -39,6 +41,8 @@ export const useGraphEditorStore = create<GraphEditorState>((set) => ({
 	isDirty: false,
 
 	startNew: (name = '') => set({ graphId: null, name, graph: SAMPLE_GRAPH, isDirty: false }),
+
+	openUnsaved: (name, graph) => set({ graphId: null, name, graph, isDirty: true }),
 
 	loadSaved: (id, name, graph) => set({ graphId: id, name, graph, isDirty: false }),
 
