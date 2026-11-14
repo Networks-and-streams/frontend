@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import type { ComputeResult, GraphInput } from '@/features/graph/types';
+import type { GraphInput, SolverResult } from '@/features/graph/types';
 
 // Same implementation the workspace uses; lazy so Cytoscape/ELK stays in its
 // own chunk and is only fetched on pages that actually show a graph.
@@ -7,7 +7,7 @@ const GraphVisualization = lazy(() => import('@/features/graph/components/GraphV
 
 interface GraphPreviewProps {
 	graph: GraphInput;
-	result?: ComputeResult | null;
+	result?: SolverResult | null;
 }
 
 /**

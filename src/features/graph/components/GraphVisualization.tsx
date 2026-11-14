@@ -3,21 +3,29 @@ import cytoscape from 'cytoscape';
 import type { Core } from 'cytoscape';
 import elk from 'cytoscape-elk';
 import { useTranslation } from 'react-i18next';
-import type { ComputeResult, GraphInput } from '../types';
+import type { AlgorithmStep, GraphInput, SolverResult } from '../types';
+import { isFlowResult } from '../types';
+import type { ViewMode } from '../store/computeResultStore';
 import {
+	buildTraceOverlay,
 	collectResultHighlight,
 	elementStructureSignature,
 	toCytoscapeElements,
 } from '../lib/graphElements';
 import { createGraphLayout, createGraphStylesheet, readGraphTheme } from '../lib/graphStyle';
+import { createFlowStylesheet } from '../lib/flowStyle';
 
 // Register the ELK layout once per module load.
 cytoscape.use(elk);
 
 interface GraphVisualizationProps {
 	graph: GraphInput;
-	/** Optional solver result used to highlight the computed shortest paths. */
-	result?: ComputeResult | null;
+	/** Optional solver result used to highlight the computed solution. */
+	result?: SolverResult | null;
+	/** Currently displayed trace frame (max-flow / Minty step). */
+	step?: AlgorithmStep | null;
+	/** Whether flow decorations, the cut, or both are rendered. */
+	viewMode?: ViewMode;
 	className?: string;
 	/**
 	 * When false, the canvas is rendered as a static, read-only preview: no
@@ -41,6 +49,8 @@ interface GraphVisualizationProps {
 function GraphVisualization({
 	graph,
 	result = null,
+	step = null,
+	viewMode = 'both',
 	className = '',
 	interactive = true,
 	heightClassName = 'h-[380px]',
@@ -58,9 +68,10 @@ function GraphVisualization({
 		const container = containerRef.current;
 		if (!container) return;
 
+		const theme = readGraphTheme();
 		const cy = cytoscape({
 			container,
-			style: createGraphStylesheet(readGraphTheme()),
+			style: [...createGraphStylesheet(theme), ...createFlowStylesheet(theme)],
 			minZoom: 0.25,
 			maxZoom: 4,
 			wheelSensitivity: 0.2,
@@ -120,13 +131,61 @@ function GraphVisualization({
 	useEffect(() => {
 		const cy = cyRef.current;
 		if (!cy) return;
-		const { nodeIds, edgeIds } = collectResultHighlight(graph, result);
+		// Only Minty results carry `paths`; flow results are drawn by the overlay.
+		const minty = result && !isFlowResult(result) ? result : null;
+		const { nodeIds, edgeIds } = collectResultHighlight(graph, minty);
 		cy.batch(() => {
 			cy.elements('.path').removeClass('path');
 			nodeIds.forEach((id) => cy.getElementById(id).addClass('path'));
 			edgeIds.forEach((id) => cy.getElementById(id).addClass('path'));
 		});
 	}, [graph, result]);
+
+	// Apply the trace overlay of the displayed frame (flow labels, saturated
+	// edges, the cut, the augmenting path, visited/current Minty vertices).
+	useEffect(() => {
+		const cy = cyRef.current;
+		if (!cy) return;
+
+		const overlay = buildTraceOverlay(graph, result, step, viewMode);
+		const isFlow = isFlowResult(result);
+
+		cy.batch(() => {
+			cy.elements().removeClass(
+				'flow-label saturated cut active-path source-side sink-side visited current sink',
+			);
+
+			// Edge labels: `flow/capacity` during a flow run, the weight otherwise.
+			// `flowWidth` scales the stroke with the amount of flow on the edge.
+			cy.edges().forEach((edge) => {
+				const id = edge.id();
+				const flowLabel = overlay.edgeLabels.get(id);
+				const baseLabel = edge.data('baseLabel') ?? edge.data('label');
+				if (isFlow && flowLabel !== undefined) {
+					const { flow, capacity } = overlay.edgeFlows.get(id) ?? { flow: 0, capacity: 0 };
+					edge.data('baseLabel', baseLabel);
+					edge.data('label', flowLabel);
+					edge.data('flowWidth', capacity > 0 ? 1.5 + (5 * flow) / capacity : 1.5);
+					edge.addClass('flow-label');
+				} else if (edge.data('baseLabel') !== undefined) {
+					edge.data('label', edge.data('baseLabel'));
+					edge.data('flowWidth', 1.5);
+				}
+			});
+
+			// Sink vertex marker of the computed flow solution.
+			if (isFlow) cy.getElementById(`v${result.sink}`).addClass('sink');
+
+			overlay.saturatedEdgeIds.forEach((id) => cy.getElementById(id).addClass('saturated'));
+			overlay.cutEdgeIds.forEach((id) => cy.getElementById(id).addClass('cut'));
+			overlay.activePathEdgeIds.forEach((id) => cy.getElementById(id).addClass('active-path'));
+			overlay.sourceSideNodeIds.forEach((id) => cy.getElementById(id).addClass('source-side'));
+			overlay.sinkSideNodeIds.forEach((id) => cy.getElementById(id).addClass('sink-side'));
+			overlay.activePathNodeIds.forEach((id) => cy.getElementById(id).addClass('active-path'));
+			overlay.visitedNodeIds.forEach((id) => cy.getElementById(id).addClass('visited'));
+			if (overlay.currentNodeId) cy.getElementById(overlay.currentNodeId).addClass('current');
+		});
+	}, [graph, result, step, viewMode]);
 
 	const ariaLabel = `${t('graphPage.canvas.ariaLabel', {
 		vertices: graph.vertices,

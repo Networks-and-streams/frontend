@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react-swc';
 
@@ -9,6 +9,13 @@ export default defineConfig({
 		alias: {
 			'@': '/src',
 		},
+	},
+	test: {
+		environment: 'jsdom',
+		globals: true,
+		setupFiles: ['./src/test/setup.ts'],
+		include: ['src/**/*.{test,spec}.{ts,tsx}'],
+		css: false,
 	},
 	server: {
 		// Host to bind. The Docker dev stack sets VITE_HOST=0.0.0.0 so the

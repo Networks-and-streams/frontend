@@ -19,6 +19,7 @@ import { useSubscriptionStore } from '@/features/subscription/store/subscription
 import { useSavedGraphsStore } from '@/features/graph/store/savedGraphsStore';
 import PublicOnly from './guards/PublicOnly';
 import RequireInactiveSubscription from './guards/RequireInactiveSubscription';
+import RequireSubscription from './guards/RequireSubscription';
 
 /**
  * State orchestration:
@@ -83,9 +84,9 @@ const router = createBrowserRouter(
 			<Route
 				index
 				element={
-					// {/* <RequireSubscription> */}
-					<HomePage />
-					// </RequireSubscription>
+					<RequireSubscription>
+						<HomePage />
+					</RequireSubscription>
 				}
 			/>
 
@@ -117,9 +118,9 @@ const router = createBrowserRouter(
 			<Route
 				path="/graph"
 				element={
-					// {/* <RequireSubscription> */ }
-					< GraphPage />
-					// </RequireSubscription>
+					<RequireSubscription>
+						<GraphPage />
+					</RequireSubscription>
 				}
 			/>
 

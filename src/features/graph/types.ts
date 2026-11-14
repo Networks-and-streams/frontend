@@ -1,10 +1,9 @@
 /**
  * Graph domain types.
  *
- * The compute service contract is described in `compute/README.md` (gRPC
- * `ComputeService.Execute(algorithm, graph, options)`). The graph input model
- * below mirrors the JSON contract from that spec so the frontend boundary is
- * ready to wire to the real endpoint once it exists.
+ * The compute contract is `POST /graph/compute` (backend `src/graph/`), which
+ * proxies the Rust compute service over gRPC and returns the already parsed
+ * `{ status, algorithm, result, steps }` envelope documented below.
  */
 
 export interface GraphEdge {
@@ -22,36 +21,133 @@ export interface GraphInput {
 export const GRAPH_ALGORITHM = {
 	MINTY: 'minty',
 	FORD_FULKERSON: 'ford_fulkerson',
+	EDMONDS_KARP: 'edmonds_karp',
 } as const;
 export type GraphAlgorithm = (typeof GRAPH_ALGORITHM)[keyof typeof GRAPH_ALGORITHM];
 
-/** Request shape for the future compute endpoint. */
+/** Algorithms that compute a maximum flow (both require a sink vertex). */
+export type FlowAlgorithm = typeof GRAPH_ALGORITHM.FORD_FULKERSON | typeof GRAPH_ALGORITHM.EDMONDS_KARP;
+
+export function isFlowAlgorithm(algorithm: GraphAlgorithm | string): algorithm is FlowAlgorithm {
+	return algorithm === GRAPH_ALGORITHM.FORD_FULKERSON || algorithm === GRAPH_ALGORITHM.EDMONDS_KARP;
+}
+
+/** Request shape for `POST /graph/compute`. */
 export interface ComputeRequest {
 	algorithm: GraphAlgorithm;
 	graph: GraphInput;
+	/** 1-based sink vertex — required by the backend for flow algorithms. */
+	sink?: number;
 	options?: {
 		includeSteps?: boolean;
 	};
 }
 
-/** Result payload returned by the compute endpoint (algorithm-specific). */
-export interface ComputeResult {
-	source?: number;
-	/** Shortest distance to each reachable vertex (key = vertex id). */
-	distances?: Record<string, number>;
-	/** Shortest route to each reachable vertex (key = vertex id). */
-	paths?: Record<string, number[]>;
+/*
+ * Response payloads (backend contract, expansion plan §2.2/§3.1).
+ *
+ * The backend returns the already parsed JSON: `{ status, algorithm, result,
+ * steps }` — never the raw `result_json`/`steps_json` strings.
+ */
+
+/** Minty: shortest distances plus every tied shortest route. */
+export interface MintyResult {
+	source: number;
+	/** Shortest distance per vertex; `null` when the vertex is unreachable. */
+	distances: Record<string, number | null>;
+	/** All tied shortest routes per target vertex (1-based vertex ids). */
+	paths: Record<string, number[][]>;
+	/** True when more tied routes exist than the backend returned. */
+	truncated: boolean;
 }
 
-/** Response shape for the future compute endpoint. */
+/** Flow on a single input edge (`index` = position in the input edge list). */
+export interface FlowEdgeResult {
+	index?: number;
+	from: number;
+	to: number;
+	flow: number;
+	capacity: number;
+}
+
+/** An edge crossing the minimum s–t cut. */
+export interface CutEdgeResult {
+	index?: number;
+	from: number;
+	to: number;
+	capacity: number;
+}
+
+/** Minimum s–t cut derived from the final residual network. */
+export interface MinCutResult {
+	value: number;
+	source_side: number[];
+	sink_side: number[];
+	edges: CutEdgeResult[];
+}
+
+/** Result of `ford_fulkerson` (DFS) / `edmonds_karp` (BFS). */
+export interface FordFulkersonResult {
+	algorithm: FlowAlgorithm;
+	mode: 'dfs' | 'bfs';
+	max_flow: number;
+	source: number;
+	sink: number;
+	flows: FlowEdgeResult[];
+	min_cut: MinCutResult;
+}
+
+/** Flow snapshot of every input edge at one point of the computation. */
+export interface FlowSnapshot {
+	index?: number;
+	from: number;
+	to: number;
+	flow: number;
+}
+
+/** One animation frame of the max-flow trace. */
+export interface FlowStep {
+	/** 1-based step number (augmentations first, final state last). */
+	iteration: number;
+	/** Vertices of the augmenting path; empty on the final step. */
+	augmenting_path: number[];
+	/** Flow pushed along the path (0 on the final step). */
+	bottleneck: number;
+	/** Edge flows AFTER this step. */
+	flows: FlowSnapshot[];
+	max_flow_so_far: number;
+	/** Present only on the final step (the cut to render). */
+	min_cut?: MinCutResult;
+}
+
+/** One animation frame of the Minty trace. */
+export interface MintyStep {
+	current: number | null;
+	visited: number[];
+	distances: Record<string, number | null>;
+}
+
+/** Union of both result families. */
+export type SolverResult = MintyResult | FordFulkersonResult;
+
+/** Narrowing helper: a flow result carries `max_flow`. */
+export function isFlowResult(result: SolverResult | null | undefined): result is FordFulkersonResult {
+	return !!result && typeof (result as FordFulkersonResult).max_flow === 'number';
+}
+
+/** Narrowing helper: flow trace frames carry `augmenting_path`. */
+export function isFlowStep(step: AlgorithmStep | null | undefined): step is FlowStep {
+	return !!step && Array.isArray((step as FlowStep).augmenting_path);
+}
+
+export type AlgorithmStep = FlowStep | MintyStep;
+
+/** Success envelope of `POST /graph/compute`. */
 export interface ComputeResponse {
-	status: 'ok' | 'error';
-	result?: ComputeResult | null;
-	executionTrace?: unknown[];
-	error?: {
-		type: string;
-		message: string;
-	};
+	status: 'ok';
+	algorithm: GraphAlgorithm;
+	result: SolverResult;
+	steps: AlgorithmStep[];
 }
 
 /** Reference sample graph matching the compute spec example. */

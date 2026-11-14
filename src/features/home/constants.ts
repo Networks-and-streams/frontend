@@ -1,4 +1,4 @@
-import { SAMPLE_GRAPH, type ComputeResult, type GraphInput } from '@/features/graph/types';
+import { SAMPLE_GRAPH, type GraphInput, type MintyResult } from '@/features/graph/types';
 
 /**
  * Static content/keys for the Home / Welcome dashboard.
@@ -21,14 +21,15 @@ export const PREVIEW_GRAPH: GraphInput = SAMPLE_GRAPH;
  * Distances/paths mirror {@link PREVIEW_GRAPH} so the preview looks realistic
  * without invoking the compute service.
  */
-export const PREVIEW_RESULT: ComputeResult = {
+export const PREVIEW_RESULT: MintyResult = {
 	source: 1,
 	distances: { '1': 0, '2': 5, '3': 2, '4': 8, '5': 6 },
+	truncated: false,
 	paths: {
-		'1': [1],
-		'2': [1, 2],
-		'3': [1, 3],
-		'4': [1, 2, 4],
-		'5': [1, 2, 5],
+		'1': [[1]],
+		'2': [[1, 2]],
+		'3': [[1, 3]],
+		'4': [[1, 2, 4]],
+		'5': [[1, 2, 5]],
 	},
 };
