@@ -165,3 +165,11 @@ vite.config.ts.timestamp-*
 # !.vscode/tasks.json
 # !.vscode/launch.json
 # !.vscode/extensions.json
+
+# Playwright E2E artifacts
+e2e-state.json
+.e2e-state.json
+.e2e-compute.json
+.e2e-logs/
+playwright-report/
+test-results/
