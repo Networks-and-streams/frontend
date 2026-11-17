@@ -173,7 +173,9 @@ export async function loginViaUi(page: Page, user: E2EUser): Promise<void> {
 
 /** Signs out from the app header and waits for /auth. */
 export async function logoutViaUi(page: Page): Promise<void> {
-	await page.getByRole('button', { name: 'Sign out' }).click();
+	// `exact: true` is required: the header also has "Sign out everywhere"
+	// (Phase 5), whose accessible name contains "Sign out" as a substring.
+	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 	await page.waitForURL('**/auth');
 }
 

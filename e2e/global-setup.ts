@@ -277,6 +277,9 @@ export default async function globalSetup(): Promise<void> {
 			PORT: String(BACKEND_PORT),
 			DATABASE_URL: TEST_DB_URL,
 			COMPUTE_ADDR,
+			// §5.7: the E2E stack buys through the local test gateway, so the
+			// whole purchase flow runs without any PSP credentials.
+			PAYMENTS_TEST_MODE: 'true',
 		},
 		log: 'backend',
 	});

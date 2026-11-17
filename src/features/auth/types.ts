@@ -10,7 +10,7 @@ export interface AuthResponse {
 	accessToken: string;
 }
 
-/** Body returned by POST /auth/logout and POST /auth/logout-all-devices. */
+/** Body returned by POST /auth/logout and POST /auth/logout-all. */
 export interface MessageResponse {
 	message: string;
 }

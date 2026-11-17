@@ -3,7 +3,8 @@
  *
  * Backend reference:
  * - `backend/src/subscriptions/`  -> GET /subscriptions/me
- * - `backend/src/payments/`       -> POST /payments, POST /payments/:id/google-pay, GET /payments/:id
+ * - `backend/src/payments/`       -> GET /payments/config, POST /payments,
+ *   POST /payments/:id/google-pay, GET /payments/:id
  */
 
 export const SUBSCRIPTION_STATUS = {
@@ -74,6 +75,16 @@ export interface Payment {
 export interface CreatePaymentDto {
 	plan: SubscriptionPlan;
 	paymentMethod: PaymentMethod;
+}
+
+/** Record returned by GET /payments/config — how payments behave here. */
+export interface PaymentConfig {
+	/**
+	 * True when the backend runs in PAYMENTS_TEST_MODE (desktop manual QA):
+	 * payments complete locally without a real payment provider, so the UI
+	 * offers the "Test purchase" button instead of Google Pay.
+	 */
+	testMode: boolean;
 }
 
 /** Body for POST /payments/:id/google-pay (raw Google Pay tokenization data). */

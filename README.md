@@ -51,7 +51,7 @@ All contracts are DTO-aligned with `../backend` (NestJS):
 | `POST /auth/login`                    | sign-in (returns access token + refresh cookie) |
 | `POST /auth/refresh`                  | silent session restoration (HttpOnly cookie)    |
 | `POST /auth/logout`                   | sign-out (revokes the refresh session)          |
-| `POST /auth/logout-all-devices`       | sign-out everywhere                             |
+| `POST /auth/logout-all`               | sign-out everywhere                             |
 | `GET /auth/status`                    | current user (`id`, `email`)                    |
 | `GET /subscriptions/me`               | authoritative subscription state                |
 | `POST /payments`                      | create a PENDING payment (plan + payment method)|

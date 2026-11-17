@@ -3,6 +3,7 @@ import { paymentEndpoints, subscriptionEndpoints } from './endpoints';
 import type {
 	CreatePaymentDto,
 	Payment,
+	PaymentConfig,
 	ProcessGooglePayDto,
 	Subscription,
 } from '../types';
@@ -10,6 +11,13 @@ import type {
 export const subscriptionApi = {
 	/** GET /subscriptions/me — the single authoritative source for subscription state. */
 	getCurrentSubscription: async () => http.get<Subscription>(subscriptionEndpoints.me),
+
+	/**
+	 * GET /payments/config — how payments behave in this deployment.
+	 * Public capability flag (e.g. PAYMENTS_TEST_MODE on the desktop build);
+	 * the Subscribe page uses it to offer the "Test purchase" button.
+	 */
+	getPaymentConfig: async () => http.get<PaymentConfig>(paymentEndpoints.config),
 
 	/** POST /payments — creates (or returns an existing PENDING) payment. */
 	createPayment: async (dto: CreatePaymentDto) => http.post<Payment>(paymentEndpoints.create, dto),

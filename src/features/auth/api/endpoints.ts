@@ -5,6 +5,7 @@ export const authEndpoints = {
 	login: `${BASE}/login`,
 	refresh: `${BASE}/refresh`,
 	logout: `${BASE}/logout`,
-	logoutAll: `${BASE}/logout-all-devices`,
+	// Must match the backend route: `@Post('logout-all')` in auth.controller.ts.
+	logoutAll: `${BASE}/logout-all`,
 	status: `${BASE}/status`,
 };

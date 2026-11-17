@@ -26,6 +26,7 @@ export const en = {
 		retry: 'Retry',
 		dismiss: 'Dismiss',
 		signOut: 'Sign out',
+		signOutEverywhere: 'Sign out everywhere',
 		checkingAccount: 'Checking your account…',
 		checkingSubscription: 'Checking your subscription…',
 		verifyingSubscription: 'Verifying your subscription…',
@@ -78,6 +79,10 @@ export const en = {
 		perDays: '/ {{count}} days',
 		paymentNote:
 			'One-time payment processed by the backend provider (Stripe). The backend determines the final amount and currency.',
+		testModeBadge: 'Test mode',
+		testPurchase: 'Test purchase',
+		testPurchaseNote:
+			'Test mode is enabled: the payment completes on the backend without contacting a real payment provider, and Premium activates for 30 days. Use it to manually verify every paid feature.',
 		startingPayment: 'Starting your payment…',
 		sendingPayment: 'Sending the payment to the backend gateway.',
 		paymentProcessing: 'Payment processing',

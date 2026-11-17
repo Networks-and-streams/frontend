@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Button from '@/shared/components/ui/Button/Button';
 import LanguageSwitcher from '@/shared/components/ui/LanguageSwitcher/LanguageSwitcher';
-import { GraphIcon, HomeIcon, InfoIcon, LogoutIcon } from '@/shared/icons';
+import { GraphIcon, HomeIcon, InfoIcon, LogoutIcon, UsersIcon } from '@/shared/icons';
 import { useAuthStore } from '@/features/auth/store/auth';
 
 interface AppShellProps {
@@ -28,12 +28,19 @@ export default function AppShell({ children }: AppShellProps) {
 	const user = useAuthStore((s) => s.user);
 	const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 	const logout = useAuthStore((s) => s.logout);
+	const logoutAll = useAuthStore((s) => s.logoutAll);
 
 	const handleLogout = useCallback(async () => {
 		await logout();
 		// The router guards redirect once auth state clears.
 		navigate('/auth', { replace: true });
 	}, [logout, navigate]);
+
+	/** §5.6: revokes every session of the account, not just this one. */
+	const handleLogoutAll = useCallback(async () => {
+		await logoutAll();
+		navigate('/auth', { replace: true });
+	}, [logoutAll, navigate]);
 
 	const handleSignIn = useCallback(() => {
 		navigate('/auth');
@@ -95,10 +102,22 @@ export default function AppShell({ children }: AppShellProps) {
 						)}
 						<LanguageSwitcher />
 						{isAuthenticated ? (
-							<Button variant="ghost" size="sm" onClick={handleLogout} aria-label={t('common.signOut')}>
-								<LogoutIcon size={16} />
-								<span className="hidden sm:inline">{t('common.signOut')}</span>
-							</Button>
+							<>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={handleLogoutAll}
+									title={t('common.signOutEverywhere')}
+									aria-label={t('common.signOutEverywhere')}
+								>
+									<UsersIcon size={16} />
+									<span className="hidden md:inline">{t('common.signOutEverywhere')}</span>
+								</Button>
+								<Button variant="ghost" size="sm" onClick={handleLogout} aria-label={t('common.signOut')}>
+									<LogoutIcon size={16} />
+									<span className="hidden sm:inline">{t('common.signOut')}</span>
+								</Button>
+							</>
 						) : (
 							<Button variant="ghost" size="sm" onClick={handleSignIn}>
 								{t('auth.signIn')}

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ApiError, getApiErrorMessage } from '@/shared/api/http';
@@ -14,6 +14,7 @@ import {
 	PREMIUM_PLAN_CONFIG,
 	type GooglePayTokenData,
 	type Payment,
+	type PaymentConfig,
 } from '../types';
 import { formatPrice } from '@/shared/utils';
 import { CheckIcon, SpinnerIcon } from '@/shared/icons';
@@ -30,6 +31,14 @@ type PayPhase =
 const POLL_INTERVAL_MS = 2500;
 const POLL_TIMEOUT_MS = 30_000;
 
+/**
+ * Placeholder token submitted by the "Test purchase" button. In
+ * PAYMENTS_TEST_MODE the backend's test gateway completes the payment
+ * without ever inspecting the payload — the shape only has to satisfy the
+ * Google Pay DTO (`tokenData` must be a non-empty object).
+ */
+const TEST_PAYMENT_TOKEN: GooglePayTokenData = { type: 'TEST', token: 'test-mode' };
+
 function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -42,9 +51,30 @@ export default function SubscribePage() {
 
 	const [payPhase, setPayPhase] = useState<PayPhase>({ status: 'idle' });
 	const [gpayState, setGpayState] = useState<GooglePayButtonState>('loading');
+	/** null until GET /payments/config resolves (see below). */
+	const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
 	const paymentIdRef = useRef<string | null>(null);
 
 	const busy = payPhase.status !== 'idle';
+	/** Desktop builds run PAYMENTS_TEST_MODE → offer the test purchase. */
+	const testMode = paymentConfig?.testMode ?? false;
+
+	// Capability flag for the payment affordance. On failure fall back to the
+	// Google Pay flow (the pre-existing behaviour) instead of blocking pay.
+	useEffect(() => {
+		let cancelled = false;
+		subscriptionApi
+			.getPaymentConfig()
+			.then((config) => {
+				if (!cancelled) setPaymentConfig(config);
+			})
+			.catch(() => {
+				if (!cancelled) setPaymentConfig({ testMode: false });
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	const finalize = useCallback(
 		async (payment: Payment) => {
@@ -86,7 +116,13 @@ export default function SubscribePage() {
 		[],
 	);
 
-	const handleToken = useCallback(
+	/**
+	 * Shared purchase flow: create the payment, submit the token to the
+	 * backend and drive the state machine. Used by both the Google Pay button
+	 * and the test-purchase button (PAYMENTS_TEST_MODE) — the backend decides
+	 * the outcome in both cases.
+	 */
+	const submitPayment = useCallback(
 		async (token: GooglePayTokenData) => {
 			setPayPhase({ status: 'creating' });
 			let created: Payment;
@@ -141,6 +177,9 @@ export default function SubscribePage() {
 		},
 		[finalize, pollUntilTerminal, t],
 	);
+
+	/** PAYMENTS_TEST_MODE: one click runs the full purchase flow locally. */
+	const handleTestPurchase = useCallback(() => submitPayment(TEST_PAYMENT_TOKEN), [submitPayment]);
 
 	const checkPaymentStatus = useCallback(async () => {
 		const id = paymentIdRef.current;
@@ -212,7 +251,14 @@ export default function SubscribePage() {
 
 				<section className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 lg:self-start">
 					<div className="flex items-baseline justify-between">
-						<span className="text-sm font-medium text-foreground/60">{t('subscription.premium')}</span>
+						<span className="flex items-center gap-2">
+							<span className="text-sm font-medium text-foreground/60">{t('subscription.premium')}</span>
+							{testMode && (
+								<span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent">
+									{t('subscription.testModeBadge')}
+								</span>
+							)}
+						</span>
 						<span className="flex items-baseline gap-1">
 							<span className="text-3xl font-semibold tracking-tight text-foreground">{priceLabel}</span>
 							<span className="text-sm text-foreground/40">
@@ -221,17 +267,26 @@ export default function SubscribePage() {
 						</span>
 					</div>
 
-					<p className="text-xs leading-relaxed text-foreground/40">{t('subscription.paymentNote')}</p>
+					<p className="text-xs leading-relaxed text-foreground/40">
+						{t(testMode ? 'subscription.testPurchaseNote' : 'subscription.paymentNote')}
+					</p>
 
-					{payPhase.status === 'idle' && (
-						<GooglePayButton
-							priceCents={PREMIUM_PLAN_CONFIG.amountCents}
-							currency={PREMIUM_PLAN_CONFIG.currency}
-							disabled={busy}
-							onToken={handleToken}
-							onStateChange={setGpayState}
-						/>
-					)}
+					{payPhase.status === 'idle' &&
+						(testMode ? (
+							// PAYMENTS_TEST_MODE: the backend completes the payment
+							// locally — one click exercises the whole purchase flow.
+							<Button onClick={handleTestPurchase} disabled={busy} className="w-full">
+								{t('subscription.testPurchase')}
+							</Button>
+						) : (
+							<GooglePayButton
+								priceCents={PREMIUM_PLAN_CONFIG.amountCents}
+								currency={PREMIUM_PLAN_CONFIG.currency}
+								disabled={busy}
+								onToken={submitPayment}
+								onStateChange={setGpayState}
+							/>
+						))}
 
 					{(payPhase.status === 'creating' || payPhase.status === 'submitting') && (
 						<PaymentStatusBlock
@@ -278,7 +333,8 @@ export default function SubscribePage() {
 						</div>
 					)}
 
-					{payPhase.status === 'succeeded' && gpayState === 'ready' && (
+					{/* In test mode no Google Pay button ever reports 'ready'. */}
+					{payPhase.status === 'succeeded' && (testMode || gpayState === 'ready') && (
 						<Button variant="secondary" onClick={goToApp} className="w-full">
 							{t('subscription.goToApp')}
 						</Button>

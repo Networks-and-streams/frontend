@@ -12,12 +12,14 @@ vi.mock('@/shared/api/http', () => ({
 }));
 
 import { authApi } from '../api/auth.api';
+import { authEndpoints } from '../api/endpoints';
 import { setAccessToken } from '@/shared/api/http';
 import { useAuthStore } from './auth';
 
 const loginMock = vi.mocked(authApi.login);
 const registerMock = vi.mocked(authApi.register);
 const logoutMock = vi.mocked(authApi.logout);
+const logoutAllMock = vi.mocked(authApi.logoutAll);
 const statusMock = vi.mocked(authApi.status);
 
 describe('auth store', () => {
@@ -65,6 +67,26 @@ describe('auth store', () => {
 		expect(state.isAuthenticated).toBe(false);
 		expect(state.user).toBeNull();
 		expect(state.isReady).toBe(true);
+	});
+
+	it('logoutAll revokes every session and clears the client state', async () => {
+		loginMock.mockResolvedValue({ accessToken: 't4' } as Awaited<ReturnType<typeof authApi.login>>);
+		statusMock.mockResolvedValue({ id: 'u4', email: 'a@b.c' } as Awaited<ReturnType<typeof authApi.status>>);
+		await useAuthStore.getState().login('a@b.c', 'secret');
+		expect(useAuthStore.getState().isAuthenticated).toBe(true);
+
+		logoutAllMock.mockResolvedValue({ message: 'ok' });
+		await useAuthStore.getState().logoutAll();
+
+		expect(logoutAllMock).toHaveBeenCalledTimes(1);
+		const state = useAuthStore.getState();
+		expect(state.isAuthenticated).toBe(false);
+		expect(state.user).toBeNull();
+		expect(state.isReady).toBe(true);
+	});
+
+	it('logoutAll endpoint matches the backend route (@Post logout-all)', () => {
+		expect(authEndpoints.logoutAll).toBe('/auth/logout-all');
 	});
 
 	it('clear() drops the session without a backend call', () => {
