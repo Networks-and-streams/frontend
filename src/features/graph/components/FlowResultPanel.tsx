@@ -128,7 +128,7 @@ export default function FlowResultPanel({ result, viewMode, onViewModeChange }: 
 							<span className="block text-[10px] uppercase tracking-wider text-foreground/40">
 								{t('graphPage.result.sourceSide')}
 							</span>
-							<span className="font-mono text-[#1e3a8a]">
+							<span className="font-mono text-[#1e3a8a] dark:text-[#93c5fd]">
 								{result.min_cut.source_side.join(', ') || '—'}
 							</span>
 						</div>
@@ -136,7 +136,7 @@ export default function FlowResultPanel({ result, viewMode, onViewModeChange }: 
 							<span className="block text-[10px] uppercase tracking-wider text-foreground/40">
 								{t('graphPage.result.sinkSide')}
 							</span>
-							<span className="font-mono text-[#7f1d1d]">
+							<span className="font-mono text-[#7f1d1d] dark:text-[#fca5a5]">
 								{result.min_cut.sink_side.join(', ') || '—'}
 							</span>
 						</div>

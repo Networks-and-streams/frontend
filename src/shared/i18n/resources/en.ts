@@ -62,6 +62,11 @@ export const en = {
 		en: 'English',
 		uk: 'Українська',
 	},
+	themeSwitcher: {
+		label: 'Theme',
+		light: 'Light theme',
+		dark: 'Dark theme',
+	},
 	subscription: {
 		title: 'Subscribe to Graph Resolver',
 		description:

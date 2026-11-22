@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AuthForm from '@/features/auth/components/AuthForm';
 import LanguageSwitcher from '@/shared/components/ui/LanguageSwitcher/LanguageSwitcher';
+import ThemeSwitcher from '@/shared/components/ui/ThemeSwitcher/ThemeSwitcher';
 
 export default function AuthPage() {
 	const { t } = useTranslation();
@@ -9,7 +10,8 @@ export default function AuthPage() {
 
 	return (
 		<div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-16 sm:py-24">
-			<div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+			<div className="absolute right-4 top-4 flex items-center gap-2 sm:right-6 sm:top-6">
+				<ThemeSwitcher variant="page" />
 				<LanguageSwitcher variant="page" />
 			</div>
 

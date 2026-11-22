@@ -14,6 +14,7 @@ import {
 } from '../lib/graphElements';
 import { createGraphLayout, createGraphStylesheet, readGraphTheme } from '../lib/graphStyle';
 import { createFlowStylesheet } from '../lib/flowStyle';
+import { useThemeStore, type Theme } from '@/shared/theme/theme';
 
 // Register the ELK layout once per module load.
 cytoscape.use(elk);
@@ -59,6 +60,10 @@ function GraphVisualization({
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const cyRef = useRef<Core | null>(null);
 	const structureSignatureRef = useRef<string>('');
+	/** Theme whose colors are currently baked into the cytoscape stylesheet. */
+	const appliedThemeRef = useRef<Theme | null>(null);
+	// Re-render (and re-materialize the canvas colors) when the theme flips.
+	const activeTheme = useThemeStore((s) => s.theme);
 
 	// Element definitions — recomputed only when the graph domain object changes.
 	const elements = useMemo(() => toCytoscapeElements(graph), [graph]);
@@ -68,10 +73,10 @@ function GraphVisualization({
 		const container = containerRef.current;
 		if (!container) return;
 
-		const theme = readGraphTheme();
+		const graphTheme = readGraphTheme();
 		const cy = cytoscape({
 			container,
-			style: [...createGraphStylesheet(theme), ...createFlowStylesheet(theme)],
+			style: [...createGraphStylesheet(graphTheme), ...createFlowStylesheet(graphTheme)],
 			minZoom: 0.25,
 			maxZoom: 4,
 			wheelSensitivity: 0.2,
@@ -82,6 +87,7 @@ function GraphVisualization({
 			userPanningEnabled: interactive,
 		});
 		cyRef.current = cy;
+		appliedThemeRef.current = useThemeStore.getState().theme;
 		// Force a layout on the next element sync for this fresh instance.
 		structureSignatureRef.current = '';
 
@@ -95,6 +101,20 @@ function GraphVisualization({
 			cyRef.current = null;
 		};
 	}, [interactive]);
+
+	// Cytoscape cannot resolve CSS variables: the stylesheet holds concrete
+	// colors read from the tokens (readGraphTheme), so a theme switch must
+	// re-materialize and re-apply it. Element classes/data are untouched.
+	useEffect(() => {
+		const cy = cyRef.current;
+		if (!cy || appliedThemeRef.current === activeTheme) return;
+		appliedThemeRef.current = activeTheme;
+
+		const graphTheme = readGraphTheme();
+		cy.style()
+			.fromJson([...createGraphStylesheet(graphTheme), ...createFlowStylesheet(graphTheme)])
+			.update();
+	}, [activeTheme]);
 
 	// Sync elements: add/remove changed elements and update data in place.
 	// A layout runs only when the node/edge set changes (not for weight edits).

@@ -6,6 +6,19 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Graph Resolver</title>
+  <!--
+    Apply the stored theme before the first paint so a light-theme user never
+    sees a dark flash. Mirrors src/shared/theme/theme.ts (same storage key);
+    <html class="dark"> is the default when nothing is stored.
+  -->
+  <script>
+    try {
+      var storedTheme = localStorage.getItem('graph-resolver.theme');
+      if (storedTheme === 'light' || storedTheme === 'dark') {
+        document.documentElement.classList.toggle('dark', storedTheme === 'dark');
+      }
+    } catch (e) { /* private mode / blocked storage: keep the default */ }
+  </script>
 </head>
 
 <body>

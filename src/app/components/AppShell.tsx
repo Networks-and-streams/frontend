@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Button from '@/shared/components/ui/Button/Button';
 import LanguageSwitcher from '@/shared/components/ui/LanguageSwitcher/LanguageSwitcher';
+import ThemeSwitcher from '@/shared/components/ui/ThemeSwitcher/ThemeSwitcher';
 import { GraphIcon, HomeIcon, InfoIcon, LogoutIcon, UsersIcon } from '@/shared/icons';
 import { useAuthStore } from '@/features/auth/store/auth';
 
@@ -101,6 +102,7 @@ export default function AppShell({ children }: AppShellProps) {
 							</span>
 						)}
 						<LanguageSwitcher />
+						<ThemeSwitcher />
 						{isAuthenticated ? (
 							<>
 								<Button

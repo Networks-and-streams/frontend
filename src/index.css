@@ -1,5 +1,13 @@
 @import 'tailwindcss';
 
+/*
+ * Class-based dark mode: the `.dark` class lives on <html> (see
+ * src/shared/theme/theme.ts) and drives every token from the `.dark` block
+ * below. Tailwind v4 defaults the `dark:` variant to prefers-color-scheme,
+ * so it must be redefined for the class strategy.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
 	--color-card: var(--card);
 	--color-card-hover: var(--card-hover);
@@ -72,6 +80,9 @@
 }
 
 :root {
+	/* Native controls/scrollbars follow the active theme. */
+	color-scheme: light;
+
 	--accent: #34d399;
 	--accent-darker: #10b981;
 
@@ -90,6 +101,8 @@
 }
 
 .dark {
+	color-scheme: dark;
+
 	--bg: #09090b;
 	--surface: #18181b;
 	--fg: #ffffff;
@@ -108,6 +121,10 @@
 	body {
 		@apply bg-background text-foreground antialiased;
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		/* Soften the theme switch (background/text only, no layout work). */
+		transition:
+			background-color 0.2s ease,
+			color 0.2s ease;
 	}
 
 	*:focus-visible {

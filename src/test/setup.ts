@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+// Initialize i18next for every test file: components call `t()` through
+// useTranslation and would otherwise receive raw keys (NO_I18NEXT_INSTANCE).
+import '@/shared/i18n';
 
 /**
  * Global Vitest setup (expansion plan §3.8).
