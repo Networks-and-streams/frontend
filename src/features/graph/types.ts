@@ -105,10 +105,52 @@ export interface FlowSnapshot {
 	flow: number;
 }
 
+/** What a detailed flow trace frame shows (Ford–Fulkerson only). */
+export type FlowFrameKind = 'label' | 'reverse' | 'augment' | 'final';
+
+/** A vertex's mark (мітка) at one point of the labeling stage. */
+export interface VertexMark {
+	vertex: number;
+	/** `null` = ∞ (only the source carries it). */
+	mark: number | null;
+}
+
+/** One labeling action: vertex `to` gets its mark from vertex `from`. */
+export interface LabelComputation {
+	from: number;
+	to: number;
+	/** Mark of `from`; `null` = ∞. */
+	mark_from: number | null;
+	/** Residual capacity of the used arc (c − f forward, f backward). */
+	residual: number;
+	/** New mark of `to` = min(mark_from, residual). */
+	mark_to: number;
+	/** Position of the input edge whose residual arc was used. */
+	edge_index: number;
+	/** True when a backward residual arc was used. */
+	backward: boolean;
+}
+
 /** One animation frame of the max-flow trace. */
 export interface FlowStep {
-	/** 1-based step number (augmentations first, final state last). */
+	/** 1-based frame number across the whole trace. */
 	iteration: number;
+	/** 1-based stage — detailed Ford–Fulkerson trace only. */
+	stage?: number;
+	/** 1-based step inside its stage — detailed Ford–Fulkerson trace only. */
+	stage_step?: number;
+	/** What the frame shows — detailed Ford–Fulkerson trace only. */
+	kind?: FlowFrameKind;
+	/** Every mark at this moment (sorted by vertex) — detailed trace only. */
+	marks?: VertexMark[];
+	/** Marked vertices (розмічені), ascending — detailed trace only. */
+	labeled?: number[];
+	/** Not yet marked vertices (нерозмічені), ascending — detailed trace only. */
+	unlabeled?: number[];
+	/** Labeling computation of a `label` frame — detailed trace only. */
+	computation?: LabelComputation;
+	/** Reverse chain so far, sink … source — detailed trace only. */
+	reverse_path?: number[];
 	/** Vertices of the augmenting path; empty on the final step. */
 	augmenting_path: number[];
 	/** Flow pushed along the path (0 on the final step). */
@@ -138,6 +180,21 @@ export function isFlowResult(result: SolverResult | null | undefined): result is
 /** Narrowing helper: flow trace frames carry `augmenting_path`. */
 export function isFlowStep(step: AlgorithmStep | null | undefined): step is FlowStep {
 	return !!step && Array.isArray((step as FlowStep).augmenting_path);
+}
+
+/**
+ * Narrowing helper: a detailed Ford–Fulkerson frame belongs to a stage and
+ * carries its kind. Edmonds–Karp frames stay flat (`stage === undefined`).
+ */
+export function isDetailedFlowStep(
+	step: AlgorithmStep | null | undefined,
+): step is FlowStep & { stage: number; stage_step: number; kind: FlowFrameKind } {
+	return (
+		isFlowStep(step) &&
+		typeof step.stage === 'number' &&
+		typeof step.stage_step === 'number' &&
+		step.kind !== undefined
+	);
 }
 
 export type AlgorithmStep = FlowStep | MintyStep;

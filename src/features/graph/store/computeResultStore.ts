@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { getApiErrorMessage } from '@/shared/api/http';
 import { graphApi } from '../api/graph.api';
 import {
+	isDetailedFlowStep,
 	isFlowAlgorithm,
 	isFlowStep,
 	type AlgorithmStep,
@@ -65,6 +66,11 @@ export interface ComputeResultState {
 	firstStep: () => void;
 	/** Last frame (stops playback). */
 	lastStep: () => void;
+
+	/** First frame of the next stage (detailed traces; no-op otherwise). */
+	nextStage: () => void;
+	/** First frame of the previous stage (detailed traces; no-op otherwise). */
+	prevStage: () => void;
 
 	/** Starts the automatic playback; restarts from the first frame at the end. */
 	play: () => void;
@@ -163,6 +169,26 @@ export const useComputeResultStore = create<ComputeResultState>((set, get) => ({
 		set((state) => ({ stepIndex: clampStep(state.steps.length - 1, state.steps), isPlaying: false }));
 	},
 
+	nextStage: () => {
+		const { steps, stepIndex } = get();
+		const current = steps[stepIndex];
+		if (!isDetailedFlowStep(current)) return;
+		const index = steps.findIndex((s) => isDetailedFlowStep(s) && s.stage === current.stage + 1);
+		if (index === -1) return;
+		stopPlayTimer();
+		set({ stepIndex: index, isPlaying: false });
+	},
+
+	prevStage: () => {
+		const { steps, stepIndex } = get();
+		const current = steps[stepIndex];
+		if (!isDetailedFlowStep(current) || current.stage <= 1) return;
+		const index = steps.findIndex((s) => isDetailedFlowStep(s) && s.stage === current.stage - 1);
+		if (index === -1) return;
+		stopPlayTimer();
+		set({ stepIndex: index, isPlaying: false });
+	},
+
 	play: () => {
 		const { steps, stepIndex, isPlaying } = get();
 		if (steps.length === 0 || isPlaying) return;
@@ -202,6 +228,33 @@ export const useComputeResultStore = create<ComputeResultState>((set, get) => ({
 export function selectFlowStep(state: ComputeResultState): FlowStep | null {
 	const step = state.steps[state.stepIndex];
 	return isFlowStep(step) ? step : null;
+}
+
+/** Stage position of the displayed frame; `null` for flat traces (E–K / Minty). */
+export interface StageInfo {
+	/** 1-based stage of the displayed frame. */
+	stage: number;
+	/** Total number of stages. */
+	stages: number;
+	/** 1-based step inside the stage. */
+	step: number;
+	/** Number of steps in the displayed stage. */
+	stepsInStage: number;
+}
+
+export function selectStageInfo(state: ComputeResultState): StageInfo | null {
+	const { steps, stepIndex } = state;
+	const current = steps[Math.min(Math.max(stepIndex, 0), Math.max(steps.length - 1, 0))];
+	if (!isDetailedFlowStep(current)) return null;
+
+	let stages = 0;
+	let stepsInStage = 0;
+	for (const step of steps) {
+		if (!isDetailedFlowStep(step)) continue;
+		if (step.stage > stages) stages = step.stage;
+		if (step.stage === current.stage) stepsInStage += 1;
+	}
+	return { stage: current.stage, stages, step: current.stage_step, stepsInStage };
 }
 
 export function selectMintyResult(state: ComputeResultState): MintyResult | null {

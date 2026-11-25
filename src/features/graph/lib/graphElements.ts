@@ -137,6 +137,15 @@ export interface TraceOverlay {
 	/** Minty frame: vertices visited so far (+ the current one). */
 	visitedNodeIds: string[];
 	currentNodeId: string | null;
+	/** Detailed frame: nodeId → mark value (`null` = ∞) of labeled vertices. */
+	nodeMarks: Map<string, number | null>;
+	/** Labeled (розмічені) vertices of the displayed frame. */
+	labeledNodeIds: string[];
+	/** Not yet labeled (нерозмічені) vertices — muted on the canvas. */
+	unlabeledNodeIds: string[];
+	/** Reverse chain of a `reverse` frame (sink … source). */
+	reversePathNodeIds: string[];
+	reversePathEdgeIds: string[];
 }
 
 export function emptyTraceOverlay(): TraceOverlay {
@@ -151,6 +160,11 @@ export function emptyTraceOverlay(): TraceOverlay {
 		activePathEdgeIds: [],
 		visitedNodeIds: [],
 		currentNodeId: null,
+		nodeMarks: new Map(),
+		labeledNodeIds: [],
+		unlabeledNodeIds: [],
+		reversePathNodeIds: [],
+		reversePathEdgeIds: [],
 	};
 }
 
@@ -230,6 +244,28 @@ export function buildTraceOverlay(
 		const path = frame.augmenting_path;
 		overlay.activePathNodeIds = path.map(graphNodeId);
 		overlay.activePathEdgeIds = pathEdgeIds(indexEdgesByPair(graph), path);
+	}
+
+	// Detailed Ford–Fulkerson frames: marks, the labeled/unlabeled partition
+	// and the growing reverse chain (flow-process info — hidden in `cut`
+	// view, which only shows the finished partition).
+	if (viewMode !== 'cut' && frame && frame.labeled) {
+		frame.marks?.forEach((mark) => overlay.nodeMarks.set(graphNodeId(mark.vertex), mark.mark));
+		overlay.labeledNodeIds = frame.labeled.map(graphNodeId);
+		// On the final frame the unlabeled set IS the sink side of the cut:
+		// dimming it would fight the cut partition, so it stays undimmed.
+		if (frame.kind !== 'final') {
+			overlay.unlabeledNodeIds = (frame.unlabeled ?? []).map(graphNodeId);
+		}
+		if (frame.computation) overlay.currentNodeId = graphNodeId(frame.computation.to);
+		if (frame.kind === 'reverse') {
+			const chain = frame.reverse_path ?? [];
+			overlay.reversePathNodeIds = chain.map(graphNodeId);
+			if (chain.length >= 2) {
+				// The chain runs sink → source; edges are indexed source → sink.
+				overlay.reversePathEdgeIds = pathEdgeIds(indexEdgesByPair(graph), [...chain].reverse());
+			}
+		}
 	}
 
 	return overlay;

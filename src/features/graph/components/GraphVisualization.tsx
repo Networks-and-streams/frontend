@@ -172,7 +172,7 @@ function GraphVisualization({
 
 		cy.batch(() => {
 			cy.elements().removeClass(
-				'flow-label saturated cut active-path source-side sink-side visited current sink',
+				'flow-label saturated cut active-path source-side sink-side visited current sink labeled unlabeled reverse-path',
 			);
 
 			// Edge labels: `flow/capacity` during a flow run, the weight otherwise.
@@ -193,15 +193,31 @@ function GraphVisualization({
 				}
 			});
 
+			// Detailed frame: a labeled vertex shows its mark next to the
+			// number — `3 (2)`, the source `1 (∞)`; the rest stays plain.
+			cy.nodes().forEach((node) => {
+				const baseLabel = node.data('baseLabel') ?? node.data('label');
+				node.data('baseLabel', baseLabel);
+				const mark = overlay.nodeMarks.get(node.id());
+				node.data(
+					'label',
+					mark === undefined ? baseLabel : `${baseLabel} (${mark === null ? '∞' : mark})`,
+				);
+			});
+
 			// Sink vertex marker of the computed flow solution.
 			if (isFlow) cy.getElementById(`v${result.sink}`).addClass('sink');
 
 			overlay.saturatedEdgeIds.forEach((id) => cy.getElementById(id).addClass('saturated'));
 			overlay.cutEdgeIds.forEach((id) => cy.getElementById(id).addClass('cut'));
 			overlay.activePathEdgeIds.forEach((id) => cy.getElementById(id).addClass('active-path'));
+			overlay.reversePathEdgeIds.forEach((id) => cy.getElementById(id).addClass('reverse-path'));
 			overlay.sourceSideNodeIds.forEach((id) => cy.getElementById(id).addClass('source-side'));
 			overlay.sinkSideNodeIds.forEach((id) => cy.getElementById(id).addClass('sink-side'));
 			overlay.activePathNodeIds.forEach((id) => cy.getElementById(id).addClass('active-path'));
+			overlay.reversePathNodeIds.forEach((id) => cy.getElementById(id).addClass('reverse-path'));
+			overlay.labeledNodeIds.forEach((id) => cy.getElementById(id).addClass('labeled'));
+			overlay.unlabeledNodeIds.forEach((id) => cy.getElementById(id).addClass('unlabeled'));
 			overlay.visitedNodeIds.forEach((id) => cy.getElementById(id).addClass('visited'));
 			if (overlay.currentNodeId) cy.getElementById(overlay.currentNodeId).addClass('current');
 		});

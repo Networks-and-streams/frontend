@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ComputeResponse } from '../types';
+import type { ComputeResponse, FlowStep } from '../types';
 
 vi.mock('../api/graph.api', () => ({
 	graphApi: { execute: vi.fn() },
 }));
 
 import { graphApi } from '../api/graph.api';
-import { PLAY_INTERVAL_MS, useComputeResultStore } from './computeResultStore';
+import { PLAY_INTERVAL_MS, selectStageInfo, useComputeResultStore } from './computeResultStore';
 
 const executeMock = vi.mocked(graphApi.execute);
 
@@ -49,6 +49,70 @@ function resetStore(): void {
 		isPlaying: false,
 	});
 }
+
+/** Detailed trace fixture: stage 1 = 2 steps, stage 2 = 2 steps. */
+const DETAILED_STEPS: FlowStep[] = [
+	{
+		iteration: 1,
+		stage: 1,
+		stage_step: 1,
+		kind: 'label',
+		marks: [{ vertex: 1, mark: null }],
+		labeled: [1],
+		unlabeled: [2, 3],
+		reverse_path: [],
+		augmenting_path: [],
+		bottleneck: 0,
+		flows: [],
+		max_flow_so_far: 0,
+	},
+	{
+		iteration: 2,
+		stage: 1,
+		stage_step: 2,
+		kind: 'augment',
+		marks: [
+			{ vertex: 1, mark: null },
+			{ vertex: 3, mark: 5 },
+		],
+		labeled: [1, 3],
+		unlabeled: [2],
+		reverse_path: [3, 1],
+		augmenting_path: [1, 3],
+		bottleneck: 5,
+		flows: [],
+		max_flow_so_far: 5,
+	},
+	{
+		iteration: 3,
+		stage: 2,
+		stage_step: 1,
+		kind: 'label',
+		marks: [{ vertex: 1, mark: null }],
+		labeled: [1],
+		unlabeled: [2, 3],
+		reverse_path: [],
+		augmenting_path: [],
+		bottleneck: 0,
+		flows: [],
+		max_flow_so_far: 5,
+	},
+	{
+		iteration: 4,
+		stage: 2,
+		stage_step: 2,
+		kind: 'final',
+		marks: [{ vertex: 1, mark: null }],
+		labeled: [1],
+		unlabeled: [2, 3],
+		reverse_path: [],
+		augmenting_path: [],
+		bottleneck: 0,
+		flows: [],
+		max_flow_so_far: 5,
+		min_cut: { value: 5, source_side: [1], sink_side: [2, 3], edges: [] },
+	},
+];
 
 describe('computeResultStore', () => {
 	beforeEach(() => {
@@ -175,5 +239,58 @@ describe('computeResultStore', () => {
 
 		vi.advanceTimersByTime(PLAY_INTERVAL_MS * 2);
 		expect(useComputeResultStore.getState().stepIndex).toBe(0);
+	});
+
+	it('selectStageInfo reports the stage/step position of a detailed frame', () => {
+		useComputeResultStore.setState({ steps: DETAILED_STEPS, stepIndex: 1 });
+		expect(selectStageInfo(useComputeResultStore.getState())).toEqual({
+			stage: 1,
+			stages: 2,
+			step: 2,
+			stepsInStage: 2,
+		});
+
+		useComputeResultStore.setState({ stepIndex: 3 });
+		expect(selectStageInfo(useComputeResultStore.getState())).toEqual({
+			stage: 2,
+			stages: 2,
+			step: 2,
+			stepsInStage: 2,
+		});
+
+		// Flat traces (Edmonds–Karp / Minty) have no stages at all.
+		useComputeResultStore.setState({ steps: FLOW_RESPONSE.steps, stepIndex: 0 });
+		expect(selectStageInfo(useComputeResultStore.getState())).toBeNull();
+	});
+
+	it('prevStage/nextStage jump to the first frame of the neighbouring stage', () => {
+		useComputeResultStore.setState({ steps: DETAILED_STEPS, stepIndex: 3 }); // stage 2, step 2
+
+		const store = useComputeResultStore.getState();
+		store.prevStage();
+		expect(useComputeResultStore.getState().stepIndex).toBe(0); // stage 1 starts here
+
+		store.prevStage(); // already the first stage — no-op
+		expect(useComputeResultStore.getState().stepIndex).toBe(0);
+
+		store.nextStage();
+		expect(useComputeResultStore.getState().stepIndex).toBe(2); // stage 2 starts here
+
+		store.nextStage(); // no stage 3 — no-op
+		expect(useComputeResultStore.getState().stepIndex).toBe(2);
+
+		// Stepping inside a stage never crosses its boundary.
+		useComputeResultStore.getState().setStep(3);
+		useComputeResultStore.getState().nextStep();
+		expect(useComputeResultStore.getState().stepIndex).toBe(3); // last frame, clamped
+	});
+
+	it('stage navigation is a no-op on flat traces', () => {
+		useComputeResultStore.setState({ steps: FLOW_RESPONSE.steps, stepIndex: 1 });
+
+		useComputeResultStore.getState().nextStage();
+		expect(useComputeResultStore.getState().stepIndex).toBe(1);
+		useComputeResultStore.getState().prevStage();
+		expect(useComputeResultStore.getState().stepIndex).toBe(1);
 	});
 });

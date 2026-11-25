@@ -159,3 +159,92 @@ describe('buildTraceOverlay', () => {
 		expect(overlay.edgeLabels.size).toBe(0);
 	});
 });
+
+describe('buildTraceOverlay (detailed Ford–Fulkerson frames)', () => {
+	const DETAILED_LABEL: FlowStep = {
+		iteration: 3,
+		stage: 1,
+		stage_step: 2,
+		kind: 'label',
+		marks: [
+			{ vertex: 1, mark: null },
+			{ vertex: 2, mark: 10 },
+		],
+		labeled: [1, 2],
+		unlabeled: [3, 4],
+		computation: { from: 1, to: 2, mark_from: null, residual: 10, mark_to: 10, edge_index: 0, backward: false },
+		reverse_path: [],
+		augmenting_path: [],
+		bottleneck: 0,
+		flows: [{ index: 0, from: 1, to: 2, flow: 0 }],
+		max_flow_so_far: 0,
+	};
+
+	it('exposes marks, the labeled/unlabeled partition and the current vertex', () => {
+		const overlay = buildTraceOverlay(GRAPH, FLOW_RESULT, DETAILED_LABEL, 'both');
+
+		expect(overlay.nodeMarks.get('v1')).toBeNull(); // ∞
+		expect(overlay.nodeMarks.get('v2')).toBe(10);
+		expect(overlay.labeledNodeIds).toEqual(['v1', 'v2']);
+		expect(overlay.unlabeledNodeIds).toEqual(['v3', 'v4']);
+		expect(overlay.currentNodeId).toBe('v2'); // the vertex receiving the mark
+		expect(overlay.reversePathNodeIds).toEqual([]);
+	});
+
+	it('keeps flow-process decorations out of the `cut` view', () => {
+		const overlay = buildTraceOverlay(GRAPH, FLOW_RESULT, DETAILED_LABEL, 'cut');
+
+		expect(overlay.nodeMarks.size).toBe(0);
+		expect(overlay.labeledNodeIds).toEqual([]);
+		expect(overlay.unlabeledNodeIds).toEqual([]);
+	});
+
+	it('does not mute the unlabeled set on the final frame (it is the sink side)', () => {
+		const finalFrame: FlowStep = {
+			...DETAILED_LABEL,
+			stage: 2,
+			stage_step: 4,
+			kind: 'final',
+			computation: undefined,
+			min_cut: FLOW_RESULT.min_cut,
+		};
+		const overlay = buildTraceOverlay(GRAPH, FLOW_RESULT, finalFrame, 'both');
+
+		expect(overlay.unlabeledNodeIds).toEqual([]);
+		expect(overlay.labeledNodeIds).toEqual(['v1', 'v2']);
+		expect(overlay.currentNodeId).toBeNull();
+	});
+
+	it('maps the reverse chain onto its nodes and source→sink edges', () => {
+		const reverseFrame: FlowStep = {
+			...DETAILED_LABEL,
+			stage_step: 5,
+			kind: 'reverse',
+			computation: undefined,
+			reverse_path: [4, 2, 1],
+		};
+		const overlay = buildTraceOverlay(GRAPH, FLOW_RESULT, reverseFrame, 'both');
+
+		// The chain runs sink → source; the edges are looked up source → sink.
+		expect(overlay.reversePathNodeIds).toEqual(['v4', 'v2', 'v1']);
+		expect(overlay.reversePathEdgeIds).toEqual(expect.arrayContaining(['e1-2-0', 'e2-4-3']));
+		expect(overlay.currentNodeId).toBeNull(); // no fresh label on a reverse frame
+	});
+
+	it('leaves flat Edmonds–Karp frames without detailed decorations', () => {
+		const flatFrame: FlowStep = {
+			iteration: 1,
+			augmenting_path: [1, 2, 4],
+			bottleneck: 10,
+			flows: [],
+			max_flow_so_far: 10,
+		};
+		const overlay = buildTraceOverlay(GRAPH, FLOW_RESULT, flatFrame, 'both');
+
+		expect(overlay.nodeMarks.size).toBe(0);
+		expect(overlay.labeledNodeIds).toEqual([]);
+		expect(overlay.reversePathNodeIds).toEqual([]);
+		// The flat frame still highlights its augmenting path.
+		expect(overlay.activePathNodeIds).toEqual(['v1', 'v2', 'v4']);
+	});
+});

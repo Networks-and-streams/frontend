@@ -8,6 +8,10 @@ import { useSession } from './helpers';
  * live — controls, headings, the run button, the result panel and the trace
  * counter — and switching back restores English. Each test starts from a
  * fresh browser context, so the persisted locale is always EN initially.
+ *
+ * The detailed Ford–Fulkerson counter is two-level: English reads
+ * `stage 3 / 3 · step 4 / 4`, Ukrainian `етап 3 / 3 · крок 4 / 4` for the
+ * same frame (the flat Edmonds–Karp `step N / M` lives in flow.spec.ts).
  */
 test.describe('Language switching', () => {
 	test('switches the workspace between EN and UA', async ({ page }) => {
@@ -30,14 +34,20 @@ test.describe('Language switching', () => {
 		await page.getByRole('button', { name: 'Запустити алгоритм', exact: true }).click();
 
 		await expect(page.getByText('Максимальний потік', { exact: true })).toBeVisible();
-		await expect(page.locator('span', { hasText: /^крок \d+ \/ \d+$/ })).toHaveText('крок 3 / 3');
+		await expect(page.locator('span', { hasText: /^етап \d+ \/ \d+ · крок \d+ \/ \d+$/ })).toHaveText(
+			'етап 3 / 3 · крок 4 / 4',
+		);
 		await expect(page.locator('p').filter({ hasText: 'завершено — потік 5' })).toBeVisible();
+		// The step card of the final frame is localized too.
+		await expect(page.getByText('Шляху немає', { exact: true })).toBeVisible();
 
 		// --- → back to EN --------------------------------------------------
 		await page.getByRole('button', { name: 'EN', exact: true }).click();
 		await expect(page.getByRole('button', { name: 'Run algorithm', exact: true })).toBeVisible();
 		await expect(page.getByText('Maximum flow', { exact: true })).toBeVisible();
-		await expect(page.locator('span', { hasText: /^step \d+ \/ \d+$/ })).toHaveText('step 3 / 3');
+		await expect(page.locator('span', { hasText: /^stage \d+ \/ \d+ · step \d+ \/ \d+$/ })).toHaveText(
+			'stage 3 / 3 · step 4 / 4',
+		);
 	});
 
 	test('switches the auth page between EN and UA', async ({ page }) => {
@@ -58,7 +68,7 @@ test.describe('Language switching', () => {
 		await expect(page.getByRole('heading', { name: 'Створіть обліковий запис', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Зареєструватися', exact: true })).toBeVisible(); // submit
 
-		// Back to English (register mode).
+		// → back to EN: everything restores.
 		await page.getByRole('button', { name: 'EN', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Create your account', exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Register', exact: true })).toBeVisible(); // submit

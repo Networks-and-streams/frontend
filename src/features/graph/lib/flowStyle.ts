@@ -15,7 +15,8 @@ export function createFlowStylesheet(theme: GraphTheme): StylesheetJson {
 			// Smooth interpolation between trace frames (§3.5).
 			selector: 'node, edge',
 			style: {
-				'transition-property': 'width, line-color, target-arrow-color, background-color, border-color, border-width',
+				'transition-property':
+					'width, line-color, target-arrow-color, background-color, border-color, border-width, opacity',
 				'transition-duration': 300,
 			},
 		},
@@ -109,6 +110,38 @@ export function createFlowStylesheet(theme: GraphTheme): StylesheetJson {
 				'overlay-color': '#f59e0b',
 				'overlay-opacity': 0.35,
 				'overlay-padding': 5,
+			},
+		},
+		{
+			// Detailed trace: a labeled vertex carries its mark in the label
+			// (`3 (2)`) and is emphasized; unlabeled vertices are muted.
+			selector: 'node.labeled',
+			style: {
+				'font-weight': 'bold',
+			},
+		},
+		{
+			selector: 'node.unlabeled',
+			style: {
+				opacity: 0.55,
+			},
+		},
+		{
+			// Reverse chain (зворотній ланцюг) growing from the sink.
+			selector: 'node.reverse-path',
+			style: {
+				'border-color': theme.accent,
+				'border-width': 4,
+				'border-style': 'dashed',
+			},
+		},
+		{
+			selector: 'edge.reverse-path',
+			style: {
+				'line-color': theme.accent,
+				'target-arrow-color': theme.accent,
+				width: 4,
+				'line-style': 'dashed',
 			},
 		},
 	];
